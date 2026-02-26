@@ -39,6 +39,7 @@ export default {
                     action: 'save_draft',
                     orderplan_headers: {
                         id: null,
+                        opid: null,
                         title: null,
                         pic_bda: null,
                         pic_ops: null,
@@ -62,6 +63,7 @@ export default {
                     action: 'request_process',
                     orderplan_headers: {
                         id: null,
+                        opid: null,
                         title: null,
                         pic_bda: null,
                         pic_ops: null,
