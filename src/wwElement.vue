@@ -156,12 +156,12 @@
                                 <input ref="bookingSearchInput" v-model="bookingSearch" type="text" class="select-search-input" placeholder="Search by BN number or title..." @keydown.stop autofocus />
                             </div>
                             <div class="booking-dropdown-list">
-                                <button v-for="bh in filteredBookingHeaders" :key="bh.id" type="button" class="booking-dropdown-item" :class="{ 'is-attached': isBookingAttached(bh.id) }" :disabled="isBookingAttached(bh.id)" @click="attachBooking(bh)">
+                                <button v-for="bh in filteredBookingHeaders" :key="bh.id" type="button" class="booking-dropdown-item" :class="{ 'is-attached': attachedBookingIds.has(bh.id) }" :disabled="attachedBookingIds.has(bh.id)" @click="attachBooking(bh)">
                                     <div class="booking-dropdown-item-info">
                                         <span class="booking-bn">{{ bh.bookingnumber }}</span>
                                         <span class="booking-title-label">{{ bh.bookingtitle }}</span>
                                     </div>
-                                    <svg v-if="isBookingAttached(bh.id)" class="booking-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                                    <svg v-if="attachedBookingIds.has(bh.id)" class="booking-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                                     <svg v-else class="booking-plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                 </button>
                                 <div v-if="filteredBookingHeaders.length === 0" class="booking-dropdown-empty">
@@ -193,16 +193,16 @@
 
                     <!-- SKU items from this booking -->
                     <div class="booking-items-list">
-                        <div v-for="item in getBookingItemsForHeader(ab.booking_headerid)" :key="item.id" class="sku-block">
+                        <div v-for="item in getBookingItems(ab.booking_headerid)" :key="item.id" class="sku-block">
                             <!-- SKU info row -->
                             <div class="sku-info-row">
-                                <img v-if="getInventoryImage(item.sku)" :src="getInventoryImage(item.sku)" :alt="getInventoryModel(item.sku)" class="sku-thumb" />
+                                <img v-if="getInventoryField(item.sku, 'imagelink')" :src="getInventoryField(item.sku, 'imagelink')" :alt="getInventoryField(item.sku, 'model')" class="sku-thumb" />
                                 <div v-else class="sku-thumb-placeholder">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                                 </div>
                                 <div class="sku-details">
-                                    <div class="sku-model">{{ getInventoryModel(item.sku) }}</div>
-                                    <div class="sku-variant">{{ getInventoryColor(item.sku) }} · {{ item.sku }}</div>
+                                    <div class="sku-model">{{ getInventoryField(item.sku, 'model') || 'Unknown Item' }}</div>
+                                    <div class="sku-variant">{{ getInventoryField(item.sku, 'color') || '-' }} · {{ item.sku }}</div>
                                 </div>
                                 <div class="sku-allocation-summary" :class="allocationStatusClass(ab.booking_headerid, item.id, item.quantity)">
                                     <span class="sku-allocated-count">{{ getAllocatedTotal(ab.booking_headerid, item.id) }}</span>
@@ -221,43 +221,40 @@
                                     <span class="alloc-th alloc-th-action">Action</span>
                                 </div>
                                 <div class="alloc-table-body">
-                                    <div v-for="(alloc, aIdx) in getAllocations(ab.booking_headerid, item.id)" :key="alloc._uid" class="alloc-row" :class="{ 'alloc-row--split': getAllocations(ab.booking_headerid, item.id).length > 1 }">
-                                        <!-- Qty -->
-                                        <div class="alloc-cell alloc-cell-qty">
-                                            <input type="number" class="alloc-qty-input" :value="alloc.quantity_assigned" min="1" @input="updateAllocationQty(ab.booking_headerid, item.id, aIdx, $event.target.value)" />
-                                            <span v-if="getAllocations(ab.booking_headerid, item.id).length > 1" class="alloc-split-label">Split #{{ aIdx + 1 }}</span>
+                                    <template v-for="(alloc, aIdx) in getAllocations(ab.booking_headerid, item.id)" :key="alloc._uid">
+                                        <div class="alloc-row" :class="{ 'alloc-row--split': getAllocations(ab.booking_headerid, item.id).length > 1 }">
+                                            <div class="alloc-cell alloc-cell-qty">
+                                                <input type="number" class="alloc-qty-input" :value="alloc.quantity_assigned" min="0" @input="updateAllocationQty(ab.booking_headerid, item.id, aIdx, $event.target.value)" />
+                                                <span v-if="getAllocations(ab.booking_headerid, item.id).length > 1" class="alloc-split-label">Split #{{ aIdx + 1 }}</span>
+                                            </div>
+                                            <div class="alloc-cell alloc-cell-dest">
+                                                <select class="alloc-select" :value="alloc.deliveries_headerid" @change="updateAllocationField(ab.booking_headerid, item.id, aIdx, 'deliveries_headerid', $event.target.value)">
+                                                    <option v-for="d in formDeliveries" :key="d._uid" :value="d._uid">{{ d.label || 'Unnamed Location' }}</option>
+                                                </select>
+                                                <span class="alloc-dest-type">{{ getDeliveryType(alloc.deliveries_headerid) }}</span>
+                                            </div>
+                                            <div class="alloc-cell alloc-cell-cust">
+                                                <select class="alloc-select" :value="alloc.customization" @change="updateAllocationField(ab.booking_headerid, item.id, aIdx, 'customization', $event.target.value)">
+                                                    <option v-for="c in CUSTOMIZATION_OPTIONS" :key="c" :value="c">{{ c }}</option>
+                                                </select>
+                                                <input v-if="alloc.customization !== 'None'" type="text" class="alloc-mockup-input" placeholder="Paste mockup link..." :value="alloc.mockupLink" @input="updateAllocationField(ab.booking_headerid, item.id, aIdx, 'mockupLink', $event.target.value)" />
+                                            </div>
+                                            <div class="alloc-cell alloc-cell-labor">
+                                                <label v-for="lo in LABOR_OPTIONS" :key="lo.id" class="alloc-labor-check">
+                                                    <input type="checkbox" :checked="alloc.labor && alloc.labor[lo.id]" @change="toggleLabor(ab.booking_headerid, item.id, aIdx, lo.id, $event.target.checked)" />
+                                                    <span>{{ lo.label }}</span>
+                                                </label>
+                                            </div>
+                                            <div class="alloc-cell alloc-cell-action">
+                                                <button type="button" class="btn-split" :class="{ 'btn-split--disabled': alloc.quantity_assigned < 2 }" :disabled="alloc.quantity_assigned < 2" title="Split Quantity" @click="handleSplit(ab.booking_headerid, item.id, aIdx)">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                                                </button>
+                                                <button v-if="getAllocations(ab.booking_headerid, item.id).length > 1" type="button" class="btn-remove-alloc" title="Remove Split" @click="removeAllocation(ab.booking_headerid, item.id, aIdx)">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <!-- Destination -->
-                                        <div class="alloc-cell alloc-cell-dest">
-                                            <select class="alloc-select" :value="alloc.deliveries_headerid" @change="updateAllocationField(ab.booking_headerid, item.id, aIdx, 'deliveries_headerid', $event.target.value)">
-                                                <option v-for="d in formDeliveries" :key="d._uid" :value="d._uid">{{ d.label || 'Unnamed Location' }}</option>
-                                            </select>
-                                            <span class="alloc-dest-type">{{ getDeliveryType(alloc.deliveries_headerid) }}</span>
-                                        </div>
-                                        <!-- Customization -->
-                                        <div class="alloc-cell alloc-cell-cust">
-                                            <select class="alloc-select" :value="alloc.customization" @change="updateAllocationField(ab.booking_headerid, item.id, aIdx, 'customization', $event.target.value)">
-                                                <option v-for="c in CUSTOMIZATION_OPTIONS" :key="c" :value="c">{{ c }}</option>
-                                            </select>
-                                            <input v-if="alloc.customization !== 'None'" type="text" class="alloc-mockup-input" placeholder="Paste mockup link..." :value="alloc.mockupLink" @input="updateAllocationField(ab.booking_headerid, item.id, aIdx, 'mockupLink', $event.target.value)" />
-                                        </div>
-                                        <!-- Labor -->
-                                        <div class="alloc-cell alloc-cell-labor">
-                                            <label v-for="lo in LABOR_OPTIONS" :key="lo.id" class="alloc-labor-check">
-                                                <input type="checkbox" :checked="alloc.labor && alloc.labor[lo.id]" @change="toggleLabor(ab.booking_headerid, item.id, aIdx, lo.id, $event.target.checked)" />
-                                                <span>{{ lo.label }}</span>
-                                            </label>
-                                        </div>
-                                        <!-- Actions -->
-                                        <div class="alloc-cell alloc-cell-action">
-                                            <button type="button" class="btn-split" title="Split Quantity" @click="handleSplit(ab.booking_headerid, item.id, aIdx)">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
-                                            </button>
-                                            <button v-if="getAllocations(ab.booking_headerid, item.id).length > 1" type="button" class="btn-remove-alloc" title="Remove Split" @click="removeAllocation(ab.booking_headerid, item.id, aIdx)">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                            </button>
-                                        </div>
-                                    </div>
+                                    </template>
                                 </div>
                             </div>
                         </div>
@@ -284,14 +281,23 @@ function generateUid() {
     try { return wwLib.wwUtils.getUid(); } catch { return 'uid-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9); }
 }
 
-/** Generates a unique OPID in format OP-XXXXXX (6 digits, datetime-based for uniqueness). */
 function generateNewOpid() {
-    const n = Date.now() % 1000000;
+    const now = Date.now();
+    const rand = Math.floor(Math.random() * 100);
+    const n = (now * 100 + rand) % 1000000;
     return 'OP-' + String(n).padStart(6, '0');
 }
 
 function deepClone(obj) {
     return JSON.parse(JSON.stringify(obj));
+}
+
+function toDatetimeLocal(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function makeDefaultDelivery(label) {
@@ -344,17 +350,28 @@ export default {
         const editingHeaderId = computed(() => props.content?.editingHeaderId || '');
         const isEditMode = computed(() => !!editingHeaderId.value);
 
-        // ── Inventory lookup ──
+        // ── Lookup maps (computed once, used everywhere) ──
         const inventoryLookup = computed(() => {
             const map = {};
-            resolvedInventoryData.value.forEach(r => { map[r.sku] = r; });
+            for (const r of resolvedInventoryData.value) map[r.sku] = r;
             return map;
         });
-
-        // ── Booking headers lookup ──
         const bookingHeadersLookup = computed(() => {
             const map = {};
-            resolvedBookingHeaders.value.forEach(h => { map[h.id] = h; });
+            for (const h of resolvedBookingHeaders.value) map[h.id] = h;
+            return map;
+        });
+        const bookingItemsByHeader = computed(() => {
+            const map = {};
+            for (const i of resolvedBookingItems.value) {
+                if (!map[i.headerid]) map[i.headerid] = [];
+                map[i.headerid].push(i);
+            }
+            return map;
+        });
+        const bookingItemLookup = computed(() => {
+            const map = {};
+            for (const i of resolvedBookingItems.value) map[i.id] = i;
             return map;
         });
 
@@ -384,6 +401,11 @@ export default {
         const picBdaSearchInput = ref(null);
         const picOpsSearchInput = ref(null);
         const bookingSearchInput = ref(null);
+
+        // ── Computed: attached booking IDs set (O(1) lookup in template) ──
+        const attachedBookingIds = computed(() =>
+            new Set(formAttachedBookings.value.map(ab => ab.booking_headerid))
+        );
 
         // ── Filtered lists ──
         const filteredTeammatesBda = computed(() => {
@@ -417,20 +439,11 @@ export default {
         function getBookingTitle(headerId) {
             return bookingHeadersLookup.value[headerId]?.bookingtitle || '';
         }
-        function getInventoryImage(sku) {
-            return inventoryLookup.value[sku]?.imagelink || '';
+        function getInventoryField(sku, field) {
+            return inventoryLookup.value[sku]?.[field] || '';
         }
-        function getInventoryModel(sku) {
-            return inventoryLookup.value[sku]?.model || 'Unknown Item';
-        }
-        function getInventoryColor(sku) {
-            return inventoryLookup.value[sku]?.color || '-';
-        }
-        function getBookingItemsForHeader(bookingHeaderId) {
-            return resolvedBookingItems.value.filter(i => i.headerid === bookingHeaderId);
-        }
-        function isBookingAttached(bookingHeaderId) {
-            return formAttachedBookings.value.some(ab => ab.booking_headerid === bookingHeaderId);
+        function getBookingItems(bookingHeaderId) {
+            return bookingItemsByHeader.value[bookingHeaderId] || [];
         }
         function getDeliveryType(deliveryUid) {
             const d = formDeliveries.value.find(dd => dd._uid === deliveryUid);
@@ -446,7 +459,9 @@ export default {
         }
         function getAllocatedTotal(bookingHeaderId, bookingItemId) {
             const allocs = getAllocations(bookingHeaderId, bookingItemId);
-            return allocs.reduce((sum, a) => sum + (parseInt(a.quantity_assigned) || 0), 0);
+            let sum = 0;
+            for (const a of allocs) sum += (parseInt(a.quantity_assigned) || 0);
+            return sum;
         }
         function allocationStatusClass(bookingHeaderId, bookingItemId, totalQty) {
             const allocated = getAllocatedTotal(bookingHeaderId, bookingItemId);
@@ -482,10 +497,12 @@ export default {
         }
 
         // ── Click-outside ──
+        const dropdownRefs = { picBda: picBdaSelectEl, picOps: picOpsSelectEl, bookingConnect: bookingConnectEl };
         function handleClickOutside(e) {
-            if (openDropdown.value === 'picBda' && picBdaSelectEl.value && !picBdaSelectEl.value.contains(e.target)) openDropdown.value = null;
-            if (openDropdown.value === 'picOps' && picOpsSelectEl.value && !picOpsSelectEl.value.contains(e.target)) openDropdown.value = null;
-            if (openDropdown.value === 'bookingConnect' && bookingConnectEl.value && !bookingConnectEl.value.contains(e.target)) openDropdown.value = null;
+            const active = openDropdown.value;
+            if (!active) return;
+            const elRef = dropdownRefs[active];
+            if (elRef?.value && !elRef.value.contains(e.target)) openDropdown.value = null;
         }
         onMounted(() => document.addEventListener('mousedown', handleClickOutside));
         onBeforeUnmount(() => document.removeEventListener('mousedown', handleClickOutside));
@@ -507,10 +524,9 @@ export default {
             const fallbackUid = formDeliveries.value[0]._uid;
             for (const key in formAllocations) {
                 const allocs = formAllocations[key];
-                if (Array.isArray(allocs)) {
-                    allocs.forEach(a => {
-                        if (a.deliveries_headerid === removedUid) a.deliveries_headerid = fallbackUid;
-                    });
+                if (!Array.isArray(allocs)) continue;
+                for (const a of allocs) {
+                    if (a.deliveries_headerid === removedUid) a.deliveries_headerid = fallbackUid;
                 }
             }
         }
@@ -520,16 +536,16 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            if (isBookingAttached(bookingHeader.id)) return;
+            if (attachedBookingIds.value.has(bookingHeader.id)) return;
 
             formAttachedBookings.value.push({ _existingId: null, booking_headerid: bookingHeader.id });
 
-            const items = getBookingItemsForHeader(bookingHeader.id);
+            const items = getBookingItems(bookingHeader.id);
             const firstDeliveryUid = formDeliveries.value[0]?._uid || '';
-            items.forEach(item => {
+            for (const item of items) {
                 const key = allocKey(bookingHeader.id, item.id);
                 formAllocations[key] = [makeDefaultAllocation(firstDeliveryUid, item.quantity || 0)];
-            });
+            }
 
             openDropdown.value = null;
         }
@@ -540,11 +556,10 @@ export default {
             const removed = formAttachedBookings.value[index];
             if (!removed) return;
             const bhId = removed.booking_headerid;
-            const items = getBookingItemsForHeader(bhId);
-            items.forEach(item => {
-                const key = allocKey(bhId, item.id);
-                delete formAllocations[key];
-            });
+            const items = getBookingItems(bhId);
+            for (const item of items) {
+                delete formAllocations[allocKey(bhId, item.id)];
+            }
             formAttachedBookings.value.splice(index, 1);
         }
 
@@ -553,27 +568,24 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            const key = allocKey(bookingHeaderId, bookingItemId);
-            const allocs = formAllocations[key];
-            if (!allocs || !allocs[allocIndex]) return;
+            const allocs = formAllocations[allocKey(bookingHeaderId, bookingItemId)];
+            if (!allocs?.[allocIndex]) return;
             allocs[allocIndex].quantity_assigned = Math.max(0, parseInt(rawValue) || 0);
         }
         function updateAllocationField(bookingHeaderId, bookingItemId, allocIndex, field, value) {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            const key = allocKey(bookingHeaderId, bookingItemId);
-            const allocs = formAllocations[key];
-            if (!allocs || !allocs[allocIndex]) return;
+            const allocs = formAllocations[allocKey(bookingHeaderId, bookingItemId)];
+            if (!allocs?.[allocIndex]) return;
             allocs[allocIndex][field] = value;
         }
         function toggleLabor(bookingHeaderId, bookingItemId, allocIndex, laborId, checked) {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            const key = allocKey(bookingHeaderId, bookingItemId);
-            const allocs = formAllocations[key];
-            if (!allocs || !allocs[allocIndex]) return;
+            const allocs = formAllocations[allocKey(bookingHeaderId, bookingItemId)];
+            if (!allocs?.[allocIndex]) return;
             if (!allocs[allocIndex].labor) allocs[allocIndex].labor = {};
             allocs[allocIndex].labor[laborId] = checked;
         }
@@ -581,13 +593,12 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            const key = allocKey(bookingHeaderId, bookingItemId);
-            const allocs = formAllocations[key];
-            if (!allocs || !allocs[allocIndex]) return;
+            const allocs = formAllocations[allocKey(bookingHeaderId, bookingItemId)];
+            if (!allocs?.[allocIndex]) return;
             const original = allocs[allocIndex];
-            const origQty = original.quantity_assigned;
-            const half1 = Math.floor(origQty / 2);
-            const half2 = origQty - half1;
+            if (original.quantity_assigned < 2) return;
+            const half1 = Math.floor(original.quantity_assigned / 2);
+            const half2 = original.quantity_assigned - half1;
             original.quantity_assigned = half1;
             const newAlloc = makeDefaultAllocation(original.deliveries_headerid, half2, original.splitgroupid);
             newAlloc.customization = original.customization;
@@ -599,8 +610,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            const key = allocKey(bookingHeaderId, bookingItemId);
-            const allocs = formAllocations[key];
+            const allocs = formAllocations[allocKey(bookingHeaderId, bookingItemId)];
             if (!allocs || allocs.length <= 1) return;
             const deletedQty = allocs[allocIndex].quantity_assigned;
             allocs.splice(allocIndex, 1);
@@ -617,11 +627,11 @@ export default {
             const orderplan_headers = {
                 id: headerId,
                 opid: headerId ? formOpid.value : generateNewOpid(),
-                title: formTitle.value,
-                pic_bda: formPicBda.value,
-                pic_ops: formPicOps.value,
-                quoteref: formQuoteRef.value,
-                invoiceref: formInvoiceRef.value,
+                title: formTitle.value || null,
+                pic_bda: formPicBda.value || null,
+                pic_ops: formPicOps.value || null,
+                quoteref: formQuoteRef.value || null,
+                invoiceref: formInvoiceRef.value || null,
                 status,
                 updated_at: now,
             };
@@ -645,12 +655,12 @@ export default {
                 return {
                     id: dbId,
                     headerid: headerId,
-                    label: d.label,
-                    deliverytype: d.deliverytype,
-                    address: d.address,
-                    remarks: d.remarks,
-                    pic_name: d.pic_name,
-                    pic_phone: d.pic_phone,
+                    label: d.label || null,
+                    deliverytype: d.deliverytype || null,
+                    address: d.address || null,
+                    remarks: d.remarks || null,
+                    pic_name: d.pic_name || null,
+                    pic_phone: d.pic_phone || null,
                     deadline: d.deadline || null,
                     _uid: d._uid,
                 };
@@ -660,24 +670,23 @@ export default {
             for (const key in formAllocations) {
                 const allocs = formAllocations[key];
                 if (!Array.isArray(allocs)) continue;
-                const parts = key.split('::');
-                const bookingItemId = parts[1];
-                allocs.forEach(a => {
+                const bookingItemId = key.split('::')[1];
+                for (const a of allocs) {
                     orderplan_lines.push({
                         id: a._existingId || null,
                         headerid: headerId,
                         bookingitems_headerid: bookingItemId,
-                        deliveries_headerid: a.deliveries_headerid,
-                        deliveries_db_id: deliveryUidToDbId[a.deliveries_headerid] || null,
+                        deliveries_headerid: deliveryUidToDbId[a.deliveries_headerid] || null,
+                        _deliveries_uid: a.deliveries_headerid,
                         customization: a.customization === 'None' ? null : a.customization,
                         quantity_assigned: a.quantity_assigned,
                         splitgroupid: a.splitgroupid,
                         mockup_link: a.mockupLink || null,
-                        labor: a.labor && Object.keys(a.labor).filter(k => a.labor[k]).length > 0
+                        labor: a.labor && Object.keys(a.labor).some(k => a.labor[k])
                             ? a.labor
                             : null,
                     });
-                });
+                }
             }
 
             const changes = computeChanges(orderplan_headers, orderplan_attbookings, orderplan_deliveries, orderplan_lines);
@@ -700,11 +709,11 @@ export default {
 
             const headerFields = ['opid', 'title', 'pic_bda', 'pic_ops', 'quoteref', 'invoiceref'];
             const headerChanges = {};
-            headerFields.forEach(f => {
+            for (const f of headerFields) {
                 if (headers[f] !== (orig.headers[f] ?? null)) {
                     headerChanges[f] = { from: orig.headers[f] ?? null, to: headers[f] };
                 }
-            });
+            }
             if (Object.keys(headerChanges).length) changes.orderplan_headers = headerChanges;
 
             const origBookingIds = new Set(orig.attBookings.map(b => b.booking_headerid));
@@ -740,15 +749,13 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            const payload = buildPayload('save_draft');
-            emit('trigger-event', { name: 'onSaveDraft', event: { value: payload } });
+            emit('trigger-event', { name: 'onSaveDraft', event: { value: buildPayload('save_draft') } });
         }
         function handleSubmit() {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            const payload = buildPayload('request_process');
-            emit('trigger-event', { name: 'onSubmitProcessing', event: { value: payload } });
+            emit('trigger-event', { name: 'onSubmitProcessing', event: { value: buildPayload('request_process') } });
         }
         function handleClose() {
             /* wwEditor:start */
@@ -789,16 +796,16 @@ export default {
                     remarks: d.remarks || '',
                     pic_name: d.pic_name || '',
                     pic_phone: d.pic_phone || '',
-                    deadline: d.deadline ? d.deadline.split('T')[0] : '',
+                    deadline: toDatetimeLocal(d.deadline),
                 }));
             } else {
                 formDeliveries.value = [makeDefaultDelivery('Main Office')];
             }
 
             const deliveryIdToUid = {};
-            formDeliveries.value.forEach(d => {
+            for (const d of formDeliveries.value) {
                 if (d._existingId) deliveryIdToUid[d._existingId] = d._uid;
-            });
+            }
 
             const attBookings = resolvedOpAttBookings.value.filter(ab => ab.headerid === headerId);
             formAttachedBookings.value = attBookings.map(ab => ({
@@ -810,9 +817,15 @@ export default {
 
             const lines = resolvedOpLines.value.filter(l => l.headerid === headerId);
             const linesByItem = {};
-            lines.forEach(l => {
-                const bhId = findBookingHeaderForItem(l.bookingitems_headerid);
-                if (!bhId) return;
+            let hasUnresolvedLines = false;
+
+            for (const l of lines) {
+                const bi = bookingItemLookup.value[l.bookingitems_headerid];
+                const bhId = bi ? bi.headerid : null;
+                if (!bhId) {
+                    hasUnresolvedLines = true;
+                    continue;
+                }
                 const key = allocKey(bhId, l.bookingitems_headerid);
                 if (!linesByItem[key]) linesByItem[key] = [];
                 linesByItem[key].push({
@@ -825,21 +838,26 @@ export default {
                     labor: {},
                     splitgroupid: l.splitgroupid || generateUid(),
                 });
-            });
+            }
             for (const key in linesByItem) {
                 formAllocations[key] = linesByItem[key];
             }
 
+            if (hasUnresolvedLines && Object.keys(linesByItem).length === 0 && lines.length > 0) {
+                originalData.value = null;
+                return;
+            }
+
             const firstDeliveryUid = formDeliveries.value[0]?._uid || '';
-            formAttachedBookings.value.forEach(ab => {
-                const items = getBookingItemsForHeader(ab.booking_headerid);
-                items.forEach(item => {
+            for (const ab of formAttachedBookings.value) {
+                const items = getBookingItems(ab.booking_headerid);
+                for (const item of items) {
                     const key = allocKey(ab.booking_headerid, item.id);
                     if (!formAllocations[key]) {
                         formAllocations[key] = [makeDefaultAllocation(firstDeliveryUid, item.quantity || 0)];
                     }
-                });
-            });
+                }
+            }
 
             originalData.value = {
                 headers: {
@@ -872,11 +890,6 @@ export default {
             };
         }
 
-        function findBookingHeaderForItem(bookingItemId) {
-            const item = resolvedBookingItems.value.find(i => i.id === bookingItemId);
-            return item ? item.headerid : null;
-        }
-
         function resetForm() {
             formOpid.value = '';
             formTitle.value = '';
@@ -903,8 +916,7 @@ export default {
             }
         }, { immediate: true });
 
-        // Re-populate if the source data arrives after the editingHeaderId was already set
-        watch([resolvedOpHeaders, resolvedOpDeliveries, resolvedOpAttBookings, resolvedOpLines], () => {
+        watch([resolvedOpHeaders, resolvedOpDeliveries, resolvedOpAttBookings, resolvedOpLines, resolvedBookingItems], () => {
             const hId = editingHeaderId.value;
             if (hId && !originalData.value) {
                 const header = resolvedOpHeaders.value.find(h => h.id === hId);
@@ -921,12 +933,11 @@ export default {
             formQuoteRef,
             formInvoiceRef,
             formPicBda,
-            formPicBdaName,
             formPicOps,
-            formPicOpsName,
             formDeliveries,
             formAttachedBookings,
             formAllocations,
+            attachedBookingIds,
             openDropdown,
             picBdaSearch,
             picOpsSearch,
@@ -944,11 +955,8 @@ export default {
             picOpsDisplay,
             getBookingNumber,
             getBookingTitle,
-            getInventoryImage,
-            getInventoryModel,
-            getInventoryColor,
-            getBookingItemsForHeader,
-            isBookingAttached,
+            getInventoryField,
+            getBookingItems,
             getDeliveryType,
             getAllocations,
             getAllocatedTotal,
@@ -974,7 +982,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-/* ── Tokens ── */
 $blue: #3b82f6;
 $blue-dark: #2563eb;
 $blue-50: #eff6ff;
@@ -1001,7 +1008,6 @@ $radius-xs: 4px;
 $transition: 0.15s ease;
 $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-/* ── Root ── */
 .orderplan-manager {
     display: flex;
     flex-direction: column;
@@ -1012,8 +1018,6 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
     font-size: 12px;
     color: $gray-900;
 }
-
-/* ═══════════ TOP BAR ═══════════ */
 .top-bar {
     position: sticky;
     top: 0;
@@ -1027,839 +1031,275 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
     border-bottom: 1px solid $gray-200;
     flex-shrink: 0;
 }
-.top-bar-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
+.top-bar-left { display: flex; align-items: center; gap: 12px; }
 .btn-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: none;
-    color: $gray-500;
-    border-radius: $radius-sm;
-    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border: none; background: none;
+    color: $gray-500; border-radius: $radius-sm; cursor: pointer;
     transition: color $transition, background $transition;
     svg { width: 18px; height: 18px; }
     &:hover { color: $gray-900; background: $gray-100; }
 }
-.top-bar-info {
-    display: flex;
-    flex-direction: column;
-}
-.top-bar-title {
-    font-size: 14px;
-    font-weight: 700;
-    margin: 0;
-    line-height: 1.3;
-    color: $gray-900;
-}
-.top-bar-subtitle {
-    font-size: 11px;
-    color: $gray-500;
-    margin: 0;
-}
-.top-bar-actions {
-    display: flex;
-    gap: 8px;
-}
+.top-bar-info { display: flex; flex-direction: column; }
+.top-bar-title { font-size: 14px; font-weight: 700; margin: 0; line-height: 1.3; color: $gray-900; }
+.top-bar-subtitle { font-size: 11px; color: $gray-500; margin: 0; }
+.top-bar-actions { display: flex; gap: 8px; }
 .btn-draft {
-    padding: 7px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    font-family: $font;
-    color: $gray-600;
-    background: $white;
-    border: 1px solid $gray-300;
-    border-radius: $radius-sm;
-    cursor: pointer;
-    transition: all $transition;
+    padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font;
+    color: $gray-600; background: $white; border: 1px solid $gray-300;
+    border-radius: $radius-sm; cursor: pointer; transition: all $transition;
     &:hover { background: $gray-50; border-color: $gray-400; }
 }
 .btn-submit {
-    padding: 7px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    font-family: $font;
-    color: $white;
-    background: $blue;
-    border: none;
-    border-radius: $radius-sm;
-    cursor: pointer;
-    transition: background $transition;
+    padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font;
+    color: $white; background: $blue; border: none;
+    border-radius: $radius-sm; cursor: pointer; transition: background $transition;
     &:hover { background: $blue-dark; }
 }
-
-/* ═══════════ FORM CONTENT ═══════════ */
 .form-content {
-    flex: 1;
-    max-width: 960px;
-    width: 100%;
-    margin: 0 auto;
-    padding: 24px 20px 60px;
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
+    flex: 1; max-width: 960px; width: 100%; margin: 0 auto;
+    padding: 24px 20px 60px; display: flex; flex-direction: column; gap: 28px;
 }
-.form-section {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
+.form-section { display: flex; flex-direction: column; gap: 12px; }
 .section-heading {
-    font-size: 11px;
-    font-weight: 700;
-    color: $gray-400;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    font-size: 11px; font-weight: 700; color: $gray-400; text-transform: uppercase;
+    letter-spacing: 0.06em; margin: 0; display: flex; align-items: center; gap: 6px;
 }
-.section-icon {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-}
-.section-heading-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-/* ── METADATA SECTION ── */
-.meta-card {
-    background: $white;
-    border: 1px solid $gray-200;
-    border-radius: $radius;
-    padding: 20px;
-}
-.meta-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-}
-.meta-field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.meta-field--full {
-    grid-column: 1 / -1;
-}
-.field-label {
-    font-size: 10px;
-    font-weight: 700;
-    color: $gray-500;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
+.section-icon { width: 15px; height: 15px; flex-shrink: 0; }
+.section-heading-row { display: flex; align-items: center; justify-content: space-between; }
+.meta-card { background: $white; border: 1px solid $gray-200; border-radius: $radius; padding: 20px; }
+.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.meta-field { display: flex; flex-direction: column; gap: 4px; }
+.meta-field--full { grid-column: 1 / -1; }
+.field-label { font-size: 10px; font-weight: 700; color: $gray-500; text-transform: uppercase; letter-spacing: 0.04em; }
 .field-input {
-    height: 38px;
-    padding: 0 12px;
-    border: 1.5px solid $gray-200;
-    border-radius: $radius-sm;
-    font-size: 12px;
-    font-family: $font;
-    color: $gray-900;
-    background: $gray-50;
-    outline: none;
+    height: 38px; padding: 0 12px; border: 1.5px solid $gray-200; border-radius: $radius-sm;
+    font-size: 12px; font-family: $font; color: $gray-900; background: $gray-50; outline: none;
     transition: border-color $transition;
     &::placeholder { color: $gray-400; }
     &:focus { border-color: $blue; background: $white; }
 }
-
-/* ── Custom Select (shared) ── */
-.custom-select {
-    position: relative;
-}
+.custom-select { position: relative; }
 .select-trigger {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    height: 38px;
-    padding: 0 10px;
-    border: 1.5px solid $gray-200;
-    border-radius: $radius-sm;
-    background: $gray-50;
-    cursor: pointer;
-    transition: border-color $transition;
-    font-family: $font;
-    font-size: 12px;
-    color: $gray-400;
-    text-align: left;
-    gap: 6px;
+    display: flex; align-items: center; width: 100%; height: 38px; padding: 0 10px;
+    border: 1.5px solid $gray-200; border-radius: $radius-sm; background: $gray-50;
+    cursor: pointer; transition: border-color $transition; font-family: $font;
+    font-size: 12px; color: $gray-400; text-align: left; gap: 6px;
     &.has-value { color: $gray-900; }
     &:hover, &:focus { border-color: $blue; }
 }
-.select-text {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.select-chevron {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    color: $gray-400;
-    svg { width: 14px; height: 14px; }
-}
+.select-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-chevron { flex-shrink: 0; display: flex; align-items: center; color: $gray-400; svg { width: 14px; height: 14px; } }
 .select-options {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    background: $white;
-    border: 1.5px solid $gray-200;
-    border-radius: $radius-sm;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-    z-index: 50;
-    list-style: none;
-    margin: 0;
-    padding: 4px 0;
-    max-height: 220px;
-    overflow-y: auto;
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: $white;
+    border: 1.5px solid $gray-200; border-radius: $radius-sm; box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    z-index: 50; list-style: none; margin: 0; padding: 4px 0; max-height: 220px; overflow-y: auto;
 }
-.select-option {
-    padding: 8px 12px;
-    font-size: 12px;
-    color: $gray-700;
-    cursor: pointer;
-    transition: background $transition;
-    &:hover { background: $gray-50; }
-}
-.select-option--placeholder {
-    color: $gray-400;
-    font-weight: 500;
-}
-.select-option--empty {
-    color: $gray-400;
-    cursor: default;
-    font-style: italic;
-    &:hover { background: transparent; }
-}
-.select-search-wrap {
-    padding: 6px 8px;
-    cursor: default;
-    &:hover { background: transparent; }
-}
+.select-option { padding: 8px 12px; font-size: 12px; color: $gray-700; cursor: pointer; transition: background $transition; &:hover { background: $gray-50; } }
+.select-option--placeholder { color: $gray-400; font-weight: 500; }
+.select-option--empty { color: $gray-400; cursor: default; font-style: italic; &:hover { background: transparent; } }
+.select-search-wrap { padding: 6px 8px; cursor: default; &:hover { background: transparent; } }
 .select-search-input {
-    width: 100%;
-    height: 30px;
-    padding: 0 8px;
-    border: 1px solid $gray-200;
-    border-radius: $radius-xs;
-    font-size: 12px;
-    font-family: $font;
-    color: $gray-900;
-    background: $white;
-    outline: none;
+    width: 100%; height: 30px; padding: 0 8px; border: 1px solid $gray-200; border-radius: $radius-xs;
+    font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none;
     &::placeholder { color: $gray-400; }
     &:focus { border-color: $blue; }
 }
-
-/* ── DELIVERY SECTION ── */
 .btn-add-location {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 5px 10px;
-    font-size: 11px;
-    font-weight: 600;
-    font-family: $font;
-    color: $blue;
-    background: $blue-50;
-    border: none;
-    border-radius: $radius-sm;
-    cursor: pointer;
-    transition: background $transition;
+    display: flex; align-items: center; gap: 4px; padding: 5px 10px; font-size: 11px;
+    font-weight: 600; font-family: $font; color: $blue; background: $blue-50; border: none;
+    border-radius: $radius-sm; cursor: pointer; transition: background $transition;
     svg { width: 14px; height: 14px; }
     &:hover { background: darken($blue-50, 4%); }
 }
-.deliveries-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-}
+.deliveries-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .delivery-card {
-    position: relative;
-    background: $white;
-    border: 1px solid $gray-200;
-    border-radius: $radius;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    transition: border-color $transition;
+    position: relative; background: $white; border: 1px solid $gray-200; border-radius: $radius;
+    padding: 16px; display: flex; flex-direction: column; gap: 12px; transition: border-color $transition;
     &:hover { border-color: $gray-300; }
 }
 .btn-remove-delivery {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border: none;
-    background: none;
-    color: $gray-300;
-    border-radius: $radius-xs;
-    cursor: pointer;
-    transition: color $transition, background $transition;
+    position: absolute; top: 12px; right: 12px; display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border: none; background: none; color: $gray-300; border-radius: $radius-xs;
+    cursor: pointer; transition: color $transition, background $transition;
     svg { width: 15px; height: 15px; }
     &:hover { color: $red; background: rgba($red, 0.06); }
 }
-.delivery-card-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+.delivery-card-header { display: flex; align-items: center; gap: 8px; }
 .delivery-index {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: $blue-50;
-    color: $blue;
-    font-size: 11px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    width: 24px; height: 24px; border-radius: 50%; background: $blue-50; color: $blue;
+    font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .delivery-label-input {
-    flex: 1;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: $font;
-    color: $gray-900;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid transparent;
-    outline: none;
-    padding: 2px 0;
-    transition: border-color $transition;
+    flex: 1; font-size: 13px; font-weight: 600; font-family: $font; color: $gray-900;
+    background: transparent; border: none; border-bottom: 1px solid transparent; outline: none;
+    padding: 2px 0; transition: border-color $transition;
     &:hover { border-bottom-color: $gray-300; }
     &:focus { border-bottom-color: $blue; }
     &::placeholder { color: $gray-400; font-weight: 400; }
 }
-.delivery-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.delivery-row-2col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-.delivery-field {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-.field-label-sm {
-    font-size: 9px;
-    font-weight: 700;
-    color: $gray-400;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
+.delivery-fields { display: flex; flex-direction: column; gap: 8px; }
+.delivery-row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.delivery-field { display: flex; flex-direction: column; gap: 3px; }
+.field-label-sm { font-size: 9px; font-weight: 700; color: $gray-400; text-transform: uppercase; letter-spacing: 0.04em; }
 .field-input-sm {
-    height: 34px;
-    padding: 0 10px;
-    border: 1px solid $gray-200;
-    border-radius: $radius-xs;
-    font-size: 12px;
-    font-family: $font;
-    color: $gray-900;
-    background: $gray-50;
-    outline: none;
+    height: 34px; padding: 0 10px; border: 1px solid $gray-200; border-radius: $radius-xs;
+    font-size: 12px; font-family: $font; color: $gray-900; background: $gray-50; outline: none;
     transition: border-color $transition;
     &::placeholder { color: $gray-400; }
     &:focus { border-color: $blue; background: $white; }
 }
 .field-select {
-    height: 34px;
-    padding: 0 8px;
-    border: 1px solid $gray-200;
-    border-radius: $radius-xs;
-    font-size: 12px;
-    font-family: $font;
-    color: $gray-900;
-    background: $gray-50;
-    outline: none;
-    cursor: pointer;
-    transition: border-color $transition;
+    height: 34px; padding: 0 8px; border: 1px solid $gray-200; border-radius: $radius-xs;
+    font-size: 12px; font-family: $font; color: $gray-900; background: $gray-50; outline: none;
+    cursor: pointer; transition: border-color $transition;
     &:focus { border-color: $blue; }
 }
 .field-textarea {
-    padding: 8px 10px;
-    border: 1px solid $gray-200;
-    border-radius: $radius-xs;
-    font-size: 12px;
-    font-family: $font;
-    color: $gray-900;
-    background: $gray-50;
-    outline: none;
-    resize: none;
+    padding: 8px 10px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px;
+    font-family: $font; color: $gray-900; background: $gray-50; outline: none; resize: none;
     transition: border-color $transition;
     &::placeholder { color: $gray-400; }
     &:focus { border-color: $blue; background: $white; }
 }
-
-/* ═══════════ BOOKINGS SECTION ═══════════ */
-.booking-connect-wrap {
-    position: relative;
-}
+.booking-connect-wrap { position: relative; }
 .btn-connect-booking {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    font-size: 11px;
-    font-weight: 700;
-    font-family: $font;
-    color: $white;
-    background: $gray-800;
-    border: none;
-    border-radius: $radius-sm;
-    cursor: pointer;
-    transition: background $transition;
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 11px;
+    font-weight: 700; font-family: $font; color: $white; background: $gray-800; border: none;
+    border-radius: $radius-sm; cursor: pointer; transition: background $transition;
     svg { width: 14px; height: 14px; }
     &:hover { background: $gray-700; }
 }
 .booking-dropdown {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
-    width: 320px;
-    background: $white;
-    border: 1.5px solid $gray-200;
-    border-radius: $radius;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.1);
-    z-index: 50;
-    overflow: hidden;
+    position: absolute; right: 0; top: calc(100% + 6px); width: 320px; background: $white;
+    border: 1.5px solid $gray-200; border-radius: $radius; box-shadow: 0 6px 24px rgba(0,0,0,0.1);
+    z-index: 50; overflow: hidden;
 }
-.booking-dropdown-search {
-    padding: 10px;
-    background: $gray-50;
-    border-bottom: 1px solid $gray-100;
-}
-.booking-dropdown-list {
-    max-height: 240px;
-    overflow-y: auto;
-}
+.booking-dropdown-search { padding: 10px; background: $gray-50; border-bottom: 1px solid $gray-100; }
+.booking-dropdown-list { max-height: 240px; overflow-y: auto; }
 .booking-dropdown-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 10px 12px;
-    border: none;
-    border-bottom: 1px solid $gray-50;
-    background: $white;
-    font-family: $font;
-    font-size: 12px;
-    cursor: pointer;
-    text-align: left;
-    transition: background $transition;
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    padding: 10px 12px; border: none; border-bottom: 1px solid $gray-50; background: $white;
+    font-family: $font; font-size: 12px; cursor: pointer; text-align: left; transition: background $transition;
     &:hover:not(:disabled) { background: $gray-50; }
-    &.is-attached {
-        opacity: 0.5;
-        cursor: not-allowed;
-        background: $gray-50;
-    }
+    &.is-attached { opacity: 0.5; cursor: not-allowed; background: $gray-50; }
 }
-.booking-dropdown-item-info {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-.booking-bn {
-    font-weight: 700;
-    color: $gray-900;
-    font-size: 12px;
-}
-.booking-title-label {
-    font-size: 11px;
-    color: $gray-500;
-}
-.booking-check-icon {
-    width: 16px;
-    height: 16px;
-    color: $green;
-    flex-shrink: 0;
-}
-.booking-plus-icon {
-    width: 16px;
-    height: 16px;
-    color: $gray-400;
-    flex-shrink: 0;
-}
-.booking-dropdown-empty {
-    padding: 16px;
-    text-align: center;
-    font-size: 12px;
-    color: $gray-400;
-}
-
-/* ── Bookings empty state ── */
+.booking-dropdown-item-info { display: flex; flex-direction: column; gap: 1px; }
+.booking-bn { font-weight: 700; color: $gray-900; font-size: 12px; }
+.booking-title-label { font-size: 11px; color: $gray-500; }
+.booking-check-icon { width: 16px; height: 16px; color: $green; flex-shrink: 0; }
+.booking-plus-icon { width: 16px; height: 16px; color: $gray-400; flex-shrink: 0; }
+.booking-dropdown-empty { padding: 16px; text-align: center; font-size: 12px; color: $gray-400; }
 .bookings-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 48px 20px;
-    border: 2px dashed $gray-200;
-    border-radius: $radius;
-    background: rgba($gray-50, 0.5);
+    display: flex; flex-direction: column; align-items: center; padding: 48px 20px;
+    border: 2px dashed $gray-200; border-radius: $radius; background: rgba($gray-50, 0.5);
 }
-.bookings-empty-icon {
-    width: 32px;
-    height: 32px;
-    color: $gray-300;
-    margin-bottom: 10px;
-}
-.bookings-empty-text {
-    font-size: 13px;
-    font-weight: 600;
-    color: $gray-500;
-    margin: 0;
-}
-.bookings-empty-hint {
-    font-size: 11px;
-    color: $gray-400;
-    margin: 4px 0 0;
-}
-
-/* ── Booking block ── */
-.booking-block {
-    background: $white;
-    border: 1px solid $gray-200;
-    border-radius: $radius;
-    overflow: hidden;
-    margin-top: 4px;
-}
-.booking-block-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    background: $gray-800;
-    color: $white;
-}
-.booking-block-header-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.booking-block-bn {
-    font-family: $font;
-    font-size: 11px;
-    font-weight: 600;
-    background: rgba($white, 0.12);
-    padding: 3px 8px;
-    border-radius: $radius-xs;
-}
-.booking-block-title {
-    font-size: 12px;
-    font-weight: 500;
-    opacity: 0.85;
-}
+.bookings-empty-icon { width: 32px; height: 32px; color: $gray-300; margin-bottom: 10px; }
+.bookings-empty-text { font-size: 13px; font-weight: 600; color: $gray-500; margin: 0; }
+.bookings-empty-hint { font-size: 11px; color: $gray-400; margin: 4px 0 0; }
+.booking-block { background: $white; border: 1px solid $gray-200; border-radius: $radius; overflow: hidden; margin-top: 4px; }
+.booking-block-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: $gray-800; color: $white; }
+.booking-block-header-info { display: flex; align-items: center; gap: 10px; }
+.booking-block-bn { font-family: $font; font-size: 11px; font-weight: 600; background: rgba($white, 0.12); padding: 3px 8px; border-radius: $radius-xs; }
+.booking-block-title { font-size: 12px; font-weight: 500; opacity: 0.85; }
 .btn-detach-booking {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: none;
-    color: rgba($white, 0.4);
-    border-radius: $radius-xs;
-    cursor: pointer;
-    transition: color $transition, background $transition;
+    display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+    border: none; background: none; color: rgba($white, 0.4); border-radius: $radius-xs;
+    cursor: pointer; transition: color $transition, background $transition;
     svg { width: 15px; height: 15px; }
     &:hover { color: $white; background: rgba($white, 0.1); }
 }
-
-/* ── SKU block ── */
-.booking-items-list {
-    padding: 0;
-}
-.sku-block {
-    padding: 16px;
-    border-bottom: 1px solid $gray-100;
-    &:last-child { border-bottom: none; }
-}
-.sku-info-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-.sku-thumb {
-    width: 44px;
-    height: 44px;
-    border-radius: $radius-sm;
-    object-fit: cover;
-    border: 1px solid $gray-200;
-    flex-shrink: 0;
-}
+.booking-items-list { padding: 0; }
+.sku-block { padding: 16px; border-bottom: 1px solid $gray-100; &:last-child { border-bottom: none; } }
+.sku-info-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.sku-thumb { width: 44px; height: 44px; border-radius: $radius-sm; object-fit: cover; border: 1px solid $gray-200; flex-shrink: 0; }
 .sku-thumb-placeholder {
-    width: 44px;
-    height: 44px;
-    border-radius: $radius-sm;
-    background: $gray-100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: $gray-400;
-    flex-shrink: 0;
+    width: 44px; height: 44px; border-radius: $radius-sm; background: $gray-100;
+    display: flex; align-items: center; justify-content: center; color: $gray-400; flex-shrink: 0;
     svg { width: 22px; height: 22px; }
 }
-.sku-details {
-    flex: 1;
-    min-width: 0;
-}
-.sku-model {
-    font-size: 13px;
-    font-weight: 700;
-    color: $gray-900;
-}
-.sku-variant {
-    font-size: 11px;
-    color: $gray-500;
-    margin-top: 1px;
-}
-.sku-allocation-summary {
-    text-align: right;
-    flex-shrink: 0;
-}
-.sku-allocated-count {
-    font-size: 20px;
-    font-weight: 700;
-    color: $gray-900;
-}
-.sku-total-count {
-    font-size: 12px;
-    font-weight: 400;
-    color: $gray-400;
-}
-.sku-alloc-label {
-    display: block;
-    font-size: 9px;
-    font-weight: 700;
-    color: $gray-400;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
+.sku-details { flex: 1; min-width: 0; }
+.sku-model { font-size: 13px; font-weight: 700; color: $gray-900; }
+.sku-variant { font-size: 11px; color: $gray-500; margin-top: 1px; }
+.sku-allocation-summary { text-align: right; flex-shrink: 0; }
+.sku-allocated-count { font-size: 20px; font-weight: 700; color: $gray-900; }
+.sku-total-count { font-size: 12px; font-weight: 400; color: $gray-400; }
+.sku-alloc-label { display: block; font-size: 9px; font-weight: 700; color: $gray-400; text-transform: uppercase; letter-spacing: 0.05em; }
 .alloc-full .sku-allocated-count { color: $green; }
 .alloc-over .sku-allocated-count { color: $red; }
 .alloc-partial .sku-allocated-count { color: $gray-900; }
-
-/* ── Allocation table ── */
-.alloc-table {
-    background: $gray-50;
-    border: 1px solid $gray-200;
-    border-radius: $radius-sm;
-    overflow: hidden;
-}
-.alloc-table-head {
-    display: grid;
-    grid-template-columns: 90px 1fr 1fr 1fr 70px;
-    gap: 8px;
-    padding: 6px 12px;
-    border-bottom: 1px solid $gray-200;
-}
-.alloc-th {
-    font-size: 9px;
-    font-weight: 700;
-    color: $gray-400;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
+.alloc-table { background: $gray-50; border: 1px solid $gray-200; border-radius: $radius-sm; overflow: hidden; }
+.alloc-table-head { display: grid; grid-template-columns: 90px 1fr 1fr 1fr 70px; gap: 8px; padding: 6px 12px; border-bottom: 1px solid $gray-200; }
+.alloc-th { font-size: 9px; font-weight: 700; color: $gray-400; text-transform: uppercase; letter-spacing: 0.04em; }
 .alloc-th-action { text-align: center; }
-.alloc-table-body {
-    display: flex;
-    flex-direction: column;
-}
+.alloc-table-body { display: flex; flex-direction: column; }
 .alloc-row {
-    display: grid;
-    grid-template-columns: 90px 1fr 1fr 1fr 70px;
-    gap: 8px;
-    padding: 8px 12px;
-    align-items: start;
-    border-bottom: 1px solid $gray-100;
-    transition: background $transition;
+    display: grid; grid-template-columns: 90px 1fr 1fr 1fr 70px; gap: 8px; padding: 8px 12px;
+    align-items: start; border-bottom: 1px solid $gray-100; transition: background $transition;
     &:last-child { border-bottom: none; }
     &:hover { background: $white; }
-    &.alloc-row--split {
-        border-left: 3px solid $blue;
-    }
+    &.alloc-row--split { border-left: 3px solid $blue; }
 }
-.alloc-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.alloc-cell-action {
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    gap: 4px;
-}
+.alloc-cell { display: flex; flex-direction: column; gap: 4px; }
+.alloc-cell-action { flex-direction: row; justify-content: center; align-items: center; gap: 4px; }
 .alloc-qty-input {
-    width: 72px;
-    height: 32px;
-    border: 1px solid $gray-300;
-    border-radius: $radius-xs;
-    text-align: center;
-    font-family: $font;
-    font-size: 12px;
-    font-weight: 600;
-    color: $gray-900;
-    background: $white;
-    outline: none;
-    transition: border-color $transition;
+    width: 72px; height: 32px; border: 1px solid $gray-300; border-radius: $radius-xs;
+    text-align: center; font-family: $font; font-size: 12px; font-weight: 600; color: $gray-900;
+    background: $white; outline: none; transition: border-color $transition;
     -moz-appearance: textfield;
-    &::-webkit-inner-spin-button,
-    &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     &:focus { border-color: $blue; }
 }
-.alloc-split-label {
-    font-size: 9px;
-    color: $gray-400;
-}
+.alloc-split-label { font-size: 9px; color: $gray-400; }
 .alloc-select {
-    width: 100%;
-    height: 32px;
-    padding: 0 6px;
-    border: 1px solid $gray-300;
-    border-radius: $radius-xs;
-    font-size: 11px;
-    font-family: $font;
-    color: $gray-900;
-    background: $white;
-    outline: none;
-    cursor: pointer;
-    transition: border-color $transition;
+    width: 100%; height: 32px; padding: 0 6px; border: 1px solid $gray-300; border-radius: $radius-xs;
+    font-size: 11px; font-family: $font; color: $gray-900; background: $white; outline: none;
+    cursor: pointer; transition: border-color $transition;
     &:focus { border-color: $blue; }
 }
-.alloc-dest-type {
-    font-size: 9px;
-    color: $gray-400;
-}
+.alloc-dest-type { font-size: 9px; color: $gray-400; }
 .alloc-mockup-input {
-    width: 100%;
-    height: 26px;
-    padding: 0 6px;
-    border: none;
-    border-bottom: 1px solid $gray-200;
-    font-size: 11px;
-    font-family: $font;
-    color: $gray-700;
-    background: transparent;
-    outline: none;
+    width: 100%; height: 26px; padding: 0 6px; border: none; border-bottom: 1px solid $gray-200;
+    font-size: 11px; font-family: $font; color: $gray-700; background: transparent; outline: none;
     transition: border-color $transition;
     &::placeholder { color: $gray-400; }
     &:focus { border-bottom-color: $blue; }
 }
 .alloc-labor-check {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    cursor: pointer;
-    font-size: 11px;
-    color: $gray-600;
-    input[type="checkbox"] {
-        width: 14px;
-        height: 14px;
-        accent-color: $blue;
-        cursor: pointer;
-    }
+    display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: $gray-600;
+    input[type="checkbox"] { width: 14px; height: 14px; accent-color: $blue; cursor: pointer; }
 }
 .btn-split {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: $blue-50;
-    color: $blue;
-    border-radius: $radius-xs;
-    cursor: pointer;
-    transition: background $transition;
+    display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+    border: none; background: $blue-50; color: $blue; border-radius: $radius-xs;
+    cursor: pointer; transition: background $transition, opacity $transition;
     svg { width: 14px; height: 14px; }
-    &:hover { background: darken($blue-50, 6%); }
+    &:hover:not(:disabled) { background: darken($blue-50, 6%); }
+    &.btn-split--disabled { opacity: 0.35; cursor: not-allowed; }
 }
 .btn-remove-alloc {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: none;
-    color: $gray-400;
-    border-radius: $radius-xs;
-    cursor: pointer;
-    transition: color $transition, background $transition;
+    display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+    border: none; background: none; color: $gray-400; border-radius: $radius-xs;
+    cursor: pointer; transition: color $transition, background $transition;
     svg { width: 14px; height: 14px; }
     &:hover { color: $red; background: rgba($red, 0.06); }
 }
-
-/* ═══════════ RESPONSIVE ═══════════ */
 @media (max-width: 768px) {
     .meta-grid { grid-template-columns: 1fr; }
     .meta-field--full { grid-column: 1; }
     .deliveries-grid { grid-template-columns: 1fr; }
-    .alloc-table-head,
-    .alloc-row {
-        grid-template-columns: 1fr;
-        gap: 6px;
-    }
+    .alloc-table-head, .alloc-row { grid-template-columns: 1fr; gap: 6px; }
     .alloc-table-head { display: none; }
-    .alloc-row {
-        padding: 12px;
-    }
-    .alloc-cell-action {
-        justify-content: flex-start;
-    }
-    .top-bar {
-        flex-wrap: wrap;
-        height: auto;
-        padding: 10px 14px;
-        gap: 8px;
-    }
-    .top-bar-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
-    .form-content {
-        padding: 16px 12px 48px;
-    }
-    .booking-dropdown {
-        width: 280px;
-    }
+    .alloc-row { padding: 12px; }
+    .alloc-cell-action { justify-content: flex-start; }
+    .top-bar { flex-wrap: wrap; height: auto; padding: 10px 14px; gap: 8px; }
+    .top-bar-actions { width: 100%; justify-content: flex-end; }
+    .form-content { padding: 16px 12px 48px; }
+    .booking-dropdown { width: 280px; }
 }
-
 @media (max-width: 480px) {
     .delivery-row-2col { grid-template-columns: 1fr; }
-    .top-bar-actions {
-        flex-direction: column;
-    }
-    .btn-draft, .btn-submit {
-        width: 100%;
-        text-align: center;
-    }
+    .top-bar-actions { flex-direction: column; }
+    .btn-draft, .btn-submit { width: 100%; text-align: center; }
 }
 </style>

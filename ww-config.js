@@ -46,6 +46,8 @@ export default {
                         quoteref: null,
                         invoiceref: null,
                         status: 'Draft',
+                        updated_at: null,
+                        created_at: null,
                     },
                     orderplan_attbookings: [
                         { id: null, headerid: null, booking_headerid: null },
@@ -54,7 +56,7 @@ export default {
                         { id: null, headerid: null, label: null, deliverytype: null, address: null, remarks: null, pic_name: null, pic_phone: null, deadline: null, _uid: null },
                     ],
                     orderplan_lines: [
-                        { id: null, headerid: null, bookingitems_headerid: null, deliveries_headerid: null, deliveries_db_id: null, customization: null, quantity_assigned: null, splitgroupid: null, mockup_link: null, labor: null },
+                        { id: null, headerid: null, bookingitems_headerid: null, deliveries_headerid: null, _deliveries_uid: null, customization: null, quantity_assigned: null, splitgroupid: null, mockup_link: null, labor: null },
                     ],
                     changes: {},
                 },
@@ -76,6 +78,9 @@ export default {
                         quoteref: null,
                         invoiceref: null,
                         status: 'Submitted',
+                        updated_at: null,
+                        created_at: null,
+                        submitted_at: null,
                     },
                     orderplan_attbookings: [
                         { id: null, headerid: null, booking_headerid: null },
@@ -84,7 +89,7 @@ export default {
                         { id: null, headerid: null, label: null, deliverytype: null, address: null, remarks: null, pic_name: null, pic_phone: null, deadline: null, _uid: null },
                     ],
                     orderplan_lines: [
-                        { id: null, headerid: null, bookingitems_headerid: null, deliveries_headerid: null, deliveries_db_id: null, customization: null, quantity_assigned: null, splitgroupid: null, mockup_link: null, labor: null },
+                        { id: null, headerid: null, bookingitems_headerid: null, deliveries_headerid: null, _deliveries_uid: null, customization: null, quantity_assigned: null, splitgroupid: null, mockup_link: null, labor: null },
                     ],
                     changes: {},
                 },
