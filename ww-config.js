@@ -6,7 +6,7 @@ export default {
             {
                 label: 'Editing Context',
                 isCollapsible: true,
-                properties: ['editingHeaderId'],
+                properties: ['editingHeaderId', 'actionStatus'],
             },
             {
                 label: 'Order Plan Data (for Edit Mode)',
@@ -120,6 +120,19 @@ export default {
             bindingValidation: {
                 type: 'string',
                 tooltip: 'UUID of an existing orderplan_headers row to edit. Leave empty for create mode.',
+            },
+            /* wwEditor:end */
+        },
+        actionStatus: {
+            label: { en: 'Action Status' },
+            type: 'Text',
+            section: 'settings',
+            bindable: true,
+            defaultValue: '',
+            /* wwEditor:start */
+            bindingValidation: {
+                type: 'string',
+                tooltip: 'Set to "successful" or "failed" after a save/submit/delete action. Null or empty = idle.',
             },
             /* wwEditor:end */
         },

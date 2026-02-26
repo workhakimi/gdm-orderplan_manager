@@ -13,25 +13,40 @@
             </div>
             <div class="top-bar-actions">
                 <template v-if="viewMode === 'preview'">
-                    <button type="button" class="btn-delete" :class="{ 'btn-delete--confirm': deleteConfirmPending }" @click="handleDelete">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        {{ deleteConfirmPending ? 'Confirm Delete?' : 'Delete' }}
+                    <button type="button" class="btn-delete" :class="{ 'btn-delete--confirm': deleteConfirmPending, 'btn--attempting': pendingAction === 'delete' }" :disabled="isAttempting" @click="handleDelete">
+                        <span v-if="pendingAction === 'delete'" class="spinner"></span>
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        {{ pendingAction === 'delete' ? 'Attempting...' : (deleteConfirmPending ? 'Confirm Delete?' : 'Delete') }}
                     </button>
-                    <button type="button" class="btn-edit" @click="enterEditMode">
+                    <button type="button" class="btn-edit" :disabled="isAttempting" @click="enterEditMode">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         Edit Plan
                     </button>
                 </template>
                 <template v-else>
-                    <button v-if="viewMode === 'editing'" type="button" class="btn-delete" :class="{ 'btn-delete--confirm': deleteConfirmPending }" @click="handleDelete">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        {{ deleteConfirmPending ? 'Confirm Delete?' : 'Delete' }}
+                    <button v-if="viewMode === 'editing'" type="button" class="btn-delete" :class="{ 'btn-delete--confirm': deleteConfirmPending, 'btn--attempting': pendingAction === 'delete' }" :disabled="isAttempting" @click="handleDelete">
+                        <span v-if="pendingAction === 'delete'" class="spinner"></span>
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        {{ pendingAction === 'delete' ? 'Attempting...' : (deleteConfirmPending ? 'Confirm Delete?' : 'Delete') }}
                     </button>
-                    <button v-if="viewMode === 'editing'" type="button" class="btn-nevermind" @click="handleNevermind">Nevermind</button>
-                    <button type="button" class="btn-draft" @click="handleSaveDraft">Save Draft</button>
-                    <button type="button" class="btn-submit" @click="handleSubmit">Submit for Processing</button>
+                    <button v-if="viewMode === 'editing'" type="button" class="btn-nevermind" :disabled="isAttempting" @click="handleNevermind">Nevermind</button>
+                    <button type="button" class="btn-draft" :class="{ 'btn--attempting': pendingAction === 'save_draft' }" :disabled="isAttempting" @click="handleSaveDraft">
+                        <span v-if="pendingAction === 'save_draft'" class="spinner"></span>
+                        {{ pendingAction === 'save_draft' ? 'Attempting...' : 'Save Draft' }}
+                    </button>
+                    <button type="button" class="btn-submit" :class="{ 'btn--attempting': pendingAction === 'submit' }" :disabled="isAttempting" @click="handleSubmit">
+                        <span v-if="pendingAction === 'submit'" class="spinner"></span>
+                        {{ pendingAction === 'submit' ? 'Attempting...' : 'Submit for Processing' }}
+                    </button>
                 </template>
             </div>
+        </div>
+
+        <!-- ═══════════ FAILED TOAST ═══════════ -->
+        <div v-if="actionFailed" class="action-failed-bar" @click="handleRetry">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            <span class="action-failed-text">{{ actionFailedLabel }} failed.</span>
+            <span class="action-failed-retry">Click to try again</span>
         </div>
 
         <!-- ═══════════ SCROLLABLE CONTENT ═══════════ -->
@@ -336,6 +351,18 @@ export default {
         const resolvedOpLines = computed(() => wwLib.wwUtils.getDataFromCollection(props.content?.orderplanLinesData) || []);
 
         const editingHeaderId = computed(() => props.content?.editingHeaderId || '');
+        const actionStatus = computed(() => {
+            const v = props.content?.actionStatus;
+            if (!v || typeof v !== 'string') return null;
+            const s = v.trim().toLowerCase();
+            if (s === 'successful' || s === 'failed') return s;
+            return null;
+        });
+
+        // ── Action tracking: null | 'save_draft' | 'submit' | 'delete' ──
+        const pendingAction = ref(null);
+        const actionFailed = ref(false);
+        const actionFailedLabel = ref('');
 
         // ── View mode: 'preview' | 'editing' | 'creating' ──
         const viewMode = ref('creating');
@@ -528,11 +555,23 @@ export default {
 
         const deleteConfirmPending = ref(false);
         let deleteConfirmTimer = null;
+        const isAttempting = computed(() => !!pendingAction.value);
 
-        function handleSaveDraft() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onSaveDraft', event: { value: buildPayload('save_draft') } }); viewMode.value = 'preview'; }
-        function handleSubmit() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onSubmitProcessing', event: { value: buildPayload('request_process') } }); }
+        const ACTION_LABELS = { save_draft: 'Save Draft', submit: 'Submit', delete: 'Delete' };
+
+        function fireAction(actionName, eventName, payload) {
+            /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */
+            if (pendingAction.value) return;
+            actionFailed.value = false;
+            pendingAction.value = actionName;
+            emit('trigger-event', { name: eventName, event: { value: payload } });
+        }
+
+        function handleSaveDraft() { fireAction('save_draft', 'onSaveDraft', buildPayload('save_draft')); }
+        function handleSubmit() { fireAction('submit', 'onSubmitProcessing', buildPayload('request_process')); }
         function handleDelete() {
             /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */
+            if (pendingAction.value) return;
             if (!deleteConfirmPending.value) {
                 deleteConfirmPending.value = true;
                 clearTimeout(deleteConfirmTimer);
@@ -541,13 +580,35 @@ export default {
             }
             clearTimeout(deleteConfirmTimer);
             deleteConfirmPending.value = false;
-            emit('trigger-event', { name: 'onDelete', event: { value: { headerId: editingHeaderId.value || null, opid: formOpid.value || null, title: formTitle.value || null } } });
+            fireAction('delete', 'onDelete', { headerId: editingHeaderId.value || null, opid: formOpid.value || null, title: formTitle.value || null });
         }
         function handleNevermind() {
             /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */
             const hId = editingHeaderId.value;
             if (hId) { populateFromExisting(hId); viewMode.value = 'preview'; }
         }
+        function handleRetry() {
+            actionFailed.value = false;
+            pendingAction.value = null;
+        }
+
+        function completeAction(action) {
+            if (action === 'save_draft') viewMode.value = 'preview';
+        }
+
+        watch(actionStatus, (newStatus) => {
+            if (!pendingAction.value) return;
+            if (newStatus === 'successful') {
+                const completed = pendingAction.value;
+                pendingAction.value = null;
+                actionFailed.value = false;
+                completeAction(completed);
+            } else if (newStatus === 'failed') {
+                actionFailedLabel.value = ACTION_LABELS[pendingAction.value] || 'Action';
+                pendingAction.value = null;
+                actionFailed.value = true;
+            }
+        });
 
         function populateFromExisting(headerId) {
             const header = resolvedOpHeaders.value.find(h => h.id === headerId); if (!header) return;
@@ -603,7 +664,8 @@ export default {
             getAllocations, getAllocatedTotal, allocationStatusClass,
             toggleDropdown, selectPicBda, selectPicOps, addDelivery, removeDelivery,
             attachBooking, detachBooking, updateAllocationQty, updateAllocationField, toggleLabor,
-            handleSplit, removeAllocation, handleSaveDraft, handleSubmit, handleDelete, handleNevermind, deleteConfirmPending,
+            handleSplit, removeAllocation, handleSaveDraft, handleSubmit, handleDelete, handleNevermind, handleRetry,
+            deleteConfirmPending, pendingAction, isAttempting, actionFailed, actionFailedLabel,
         };
     },
 };
@@ -666,6 +728,19 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .btn-nevermind { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $gray-500; background: transparent; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { color: $gray-700; background: $gray-100; border-color: $gray-400; } }
 .btn-draft { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $gray-700; background: $white; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { background: $gray-50; border-color: $gray-400; } }
 .btn-submit { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $gray-900; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; &:hover { background: $gray-800; } }
+
+/* ═══ ATTEMPTING STATE ═══ */
+.btn--attempting { opacity: 0.7; cursor: wait; pointer-events: none; display: flex; align-items: center; gap: 6px; }
+.btn-draft:disabled, .btn-submit:disabled, .btn-edit:disabled, .btn-nevermind:disabled { opacity: 0.5; cursor: not-allowed; }
+.spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: currentColor; border-radius: 50%; animation: spin 0.6s linear infinite; flex-shrink: 0; }
+.btn-draft .spinner { border: 2px solid rgba(0,0,0,0.1); border-top-color: $gray-600; }
+.btn-nevermind .spinner { border: 2px solid rgba(0,0,0,0.1); border-top-color: $gray-500; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══ FAILED TOAST ═══ */
+.action-failed-bar { display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: $red-50; border-bottom: 1px solid rgba($red, 0.15); cursor: pointer; transition: background $transition; &:hover { background: darken($red-50, 2%); } svg { width: 16px; height: 16px; color: $red; flex-shrink: 0; } }
+.action-failed-text { font-size: 12px; font-weight: 600; color: $red-dark; }
+.action-failed-retry { font-size: 11px; color: $red; text-decoration: underline; margin-left: auto; }
 
 /* ═══ FORM CONTENT ═══ */
 .form-content { flex: 1; max-width: 960px; width: 100%; margin: 0 auto; padding: 24px 20px 60px; display: flex; flex-direction: column; gap: 28px; }
