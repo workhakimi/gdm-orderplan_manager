@@ -113,7 +113,7 @@
                                 </div>
                                 <div class="delivery-field">
                                     <label class="field-label-sm">Deadline</label>
-                                    <input type="date" class="field-input-sm" v-model="del.deadline" />
+                                    <input type="datetime-local" class="field-input-sm" v-model="del.deadline" />
                                 </div>
                             </div>
                             <div class="delivery-field">
