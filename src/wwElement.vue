@@ -284,6 +284,12 @@ function generateUid() {
     try { return wwLib.wwUtils.getUid(); } catch { return 'uid-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9); }
 }
 
+/** Generates a unique OPID in format OP-XXXXXX (6 digits, datetime-based for uniqueness). */
+function generateNewOpid() {
+    const n = Date.now() % 1000000;
+    return 'OP-' + String(n).padStart(6, '0');
+}
+
 function deepClone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
@@ -360,6 +366,7 @@ export default {
         const formPicBdaName = ref('');
         const formPicOps = ref(null);
         const formPicOpsName = ref('');
+        const formOpid = ref('');
         const formDeliveries = ref([makeDefaultDelivery('Main Office')]);
         const formAttachedBookings = ref([]);
         const formAllocations = reactive({});
@@ -609,6 +616,7 @@ export default {
 
             const orderplan_headers = {
                 id: headerId,
+                opid: headerId ? formOpid.value : generateNewOpid(),
                 title: formTitle.value,
                 pic_bda: formPicBda.value,
                 pic_ops: formPicOps.value,
@@ -686,7 +694,7 @@ export default {
             const orig = originalData.value;
             const changes = {};
 
-            const headerFields = ['title', 'pic_bda', 'pic_ops', 'quoteref', 'invoiceref'];
+            const headerFields = ['opid', 'title', 'pic_bda', 'pic_ops', 'quoteref', 'invoiceref'];
             const headerChanges = {};
             headerFields.forEach(f => {
                 if (headers[f] !== (orig.headers[f] ?? null)) {
@@ -750,6 +758,7 @@ export default {
             const header = resolvedOpHeaders.value.find(h => h.id === headerId);
             if (!header) return;
 
+            formOpid.value = header.opid || '';
             formTitle.value = header.title || '';
             formQuoteRef.value = header.quoteref || '';
             formInvoiceRef.value = header.invoiceref || '';
@@ -827,6 +836,7 @@ export default {
 
             originalData.value = {
                 headers: {
+                    opid: header.opid || '',
                     title: header.title || '',
                     pic_bda: header.pic_bda || null,
                     pic_ops: header.pic_ops || null,
@@ -861,6 +871,7 @@ export default {
         }
 
         function resetForm() {
+            formOpid.value = '';
             formTitle.value = '';
             formQuoteRef.value = '';
             formInvoiceRef.value = '';
