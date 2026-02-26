@@ -522,7 +522,7 @@ export default {
             /* wwEditor:end */
             if (isBookingAttached(bookingHeader.id)) return;
 
-            formAttachedBookings.value.push({ booking_headerid: bookingHeader.id });
+            formAttachedBookings.value.push({ _existingId: null, booking_headerid: bookingHeader.id });
 
             const items = getBookingItemsForHeader(bookingHeader.id);
             const firstDeliveryUid = formDeliveries.value[0]?._uid || '';
@@ -633,6 +633,8 @@ export default {
             }
 
             const orderplan_attbookings = formAttachedBookings.value.map(ab => ({
+                id: ab._existingId || null,
+                headerid: headerId,
                 booking_headerid: ab.booking_headerid,
             }));
 
@@ -642,6 +644,7 @@ export default {
                 deliveryUidToDbId[d._uid] = dbId;
                 return {
                     id: dbId,
+                    headerid: headerId,
                     label: d.label,
                     deliverytype: d.deliverytype,
                     address: d.address,
@@ -662,6 +665,7 @@ export default {
                 allocs.forEach(a => {
                     orderplan_lines.push({
                         id: a._existingId || null,
+                        headerid: headerId,
                         bookingitems_headerid: bookingItemId,
                         deliveries_headerid: a.deliveries_headerid,
                         deliveries_db_id: deliveryUidToDbId[a.deliveries_headerid] || null,
@@ -797,7 +801,10 @@ export default {
             });
 
             const attBookings = resolvedOpAttBookings.value.filter(ab => ab.headerid === headerId);
-            formAttachedBookings.value = attBookings.map(ab => ({ booking_headerid: ab.booking_headerid }));
+            formAttachedBookings.value = attBookings.map(ab => ({
+                _existingId: ab.id || null,
+                booking_headerid: ab.booking_headerid,
+            }));
 
             for (const key in formAllocations) delete formAllocations[key];
 

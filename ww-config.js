@@ -47,9 +47,15 @@ export default {
                         invoiceref: null,
                         status: 'Draft',
                     },
-                    orderplan_attbookings: [],
-                    orderplan_deliveries: [],
-                    orderplan_lines: [],
+                    orderplan_attbookings: [
+                        { id: null, headerid: null, booking_headerid: null },
+                    ],
+                    orderplan_deliveries: [
+                        { id: null, headerid: null, label: null, deliverytype: null, address: null, remarks: null, pic_name: null, pic_phone: null, deadline: null, _uid: null },
+                    ],
+                    orderplan_lines: [
+                        { id: null, headerid: null, bookingitems_headerid: null, deliveries_headerid: null, deliveries_db_id: null, customization: null, quantity_assigned: null, splitgroupid: null, mockup_link: null, labor: null },
+                    ],
                     changes: {},
                 },
             },
@@ -71,9 +77,15 @@ export default {
                         invoiceref: null,
                         status: 'Submitted',
                     },
-                    orderplan_attbookings: [],
-                    orderplan_deliveries: [],
-                    orderplan_lines: [],
+                    orderplan_attbookings: [
+                        { id: null, headerid: null, booking_headerid: null },
+                    ],
+                    orderplan_deliveries: [
+                        { id: null, headerid: null, label: null, deliverytype: null, address: null, remarks: null, pic_name: null, pic_phone: null, deadline: null, _uid: null },
+                    ],
+                    orderplan_lines: [
+                        { id: null, headerid: null, bookingitems_headerid: null, deliveries_headerid: null, deliveries_db_id: null, customization: null, quantity_assigned: null, splitgroupid: null, mockup_link: null, labor: null },
+                    ],
                     changes: {},
                 },
             },
