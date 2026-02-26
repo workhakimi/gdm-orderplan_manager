@@ -3,9 +3,6 @@
         <!-- ═══════════ STICKY TOP BAR ═══════════ -->
         <div class="top-bar" :class="'top-bar--' + viewMode">
             <div class="top-bar-left">
-                <button type="button" class="btn-close" @click="handleClose">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
                 <div class="top-bar-info">
                     <div class="top-bar-title-row">
                         <h2 class="top-bar-title">{{ topBarTitle }}</h2>
@@ -16,6 +13,10 @@
             </div>
             <div class="top-bar-actions">
                 <template v-if="viewMode === 'preview'">
+                    <button type="button" class="btn-delete" @click="handleDelete">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        Delete
+                    </button>
                     <button type="button" class="btn-edit" @click="enterEditMode">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         Edit Plan
@@ -520,9 +521,9 @@ export default {
             return changes;
         }
 
-        function handleSaveDraft() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onSaveDraft', event: { value: buildPayload('save_draft') } }); }
+        function handleSaveDraft() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onSaveDraft', event: { value: buildPayload('save_draft') } }); viewMode.value = 'preview'; }
         function handleSubmit() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onSubmitProcessing', event: { value: buildPayload('request_process') } }); }
-        function handleClose() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onClose', event: { value: null } }); }
+        function handleDelete() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onDelete', event: { value: { headerId: editingHeaderId.value || null, opid: formOpid.value || null, title: formTitle.value || null } } }); }
 
         function populateFromExisting(headerId) {
             const header = resolvedOpHeaders.value.find(h => h.id === headerId); if (!header) return;
@@ -578,7 +579,7 @@ export default {
             getAllocations, getAllocatedTotal, allocationStatusClass,
             toggleDropdown, selectPicBda, selectPicOps, addDelivery, removeDelivery,
             attachBooking, detachBooking, updateAllocationQty, updateAllocationField, toggleLabor,
-            handleSplit, removeAllocation, handleSaveDraft, handleSubmit, handleClose,
+            handleSplit, removeAllocation, handleSaveDraft, handleSubmit, handleDelete,
         };
     },
 };
@@ -626,7 +627,6 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .top-bar--editing { background: $white; border-bottom: 2px solid $amber; }
 .top-bar--creating { background: $white; border-bottom: 2px solid $blue; }
 .top-bar-left { display: flex; align-items: center; gap: 12px; }
-.btn-close { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; background: none; color: $gray-500; border-radius: $radius-sm; cursor: pointer; transition: color $transition, background $transition; svg { width: 18px; height: 18px; } &:hover { color: $gray-900; background: $gray-100; } }
 .top-bar-info { display: flex; flex-direction: column; }
 .top-bar-title-row { display: flex; align-items: center; gap: 8px; }
 .top-bar-title { font-size: 14px; font-weight: 700; margin: 0; line-height: 1.3; color: $gray-900; }
@@ -640,6 +640,7 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .mode-badge--creating { background: $blue-50; color: $blue; }
 
 /* ═══ BUTTONS ═══ */
+.btn-delete { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $red; background: $white; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; svg { width: 14px; height: 14px; } &:hover { color: $white; background: $red; border-color: $red; } }
 .btn-edit { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $amber; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; svg { width: 14px; height: 14px; } &:hover { background: darken($amber, 8%); } }
 .btn-draft { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $gray-600; background: $white; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { background: $gray-50; border-color: $gray-400; } }
 .btn-submit { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $blue; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; &:hover { background: $blue-dark; } }

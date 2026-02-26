@@ -97,9 +97,15 @@ export default {
             default: false,
         },
         {
-            name: 'onClose',
-            label: { en: 'On Close' },
-            event: { value: null },
+            name: 'onDelete',
+            label: { en: 'On Delete' },
+            event: {
+                value: {
+                    headerId: null,
+                    opid: null,
+                    title: null,
+                },
+            },
             default: false,
         },
     ],
