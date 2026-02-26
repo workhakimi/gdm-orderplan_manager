@@ -13,9 +13,9 @@
             </div>
             <div class="top-bar-actions">
                 <template v-if="viewMode === 'preview'">
-                    <button type="button" class="btn-delete" @click="handleDelete">
+                    <button type="button" class="btn-delete" :class="{ 'btn-delete--confirm': deleteConfirmPending }" @click="handleDelete">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        Delete
+                        {{ deleteConfirmPending ? 'Confirm Delete?' : 'Delete' }}
                     </button>
                     <button type="button" class="btn-edit" @click="enterEditMode">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -23,6 +23,11 @@
                     </button>
                 </template>
                 <template v-else>
+                    <button type="button" class="btn-delete" :class="{ 'btn-delete--confirm': deleteConfirmPending }" @click="handleDelete">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        {{ deleteConfirmPending ? 'Confirm Delete?' : 'Delete' }}
+                    </button>
+                    <button v-if="viewMode === 'editing'" type="button" class="btn-nevermind" @click="handleNevermind">Nevermind</button>
                     <button type="button" class="btn-draft" @click="handleSaveDraft">Save Draft</button>
                     <button type="button" class="btn-submit" @click="handleSubmit">Submit for Processing</button>
                 </template>
@@ -521,9 +526,28 @@ export default {
             return changes;
         }
 
+        const deleteConfirmPending = ref(false);
+        let deleteConfirmTimer = null;
+
         function handleSaveDraft() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onSaveDraft', event: { value: buildPayload('save_draft') } }); viewMode.value = 'preview'; }
         function handleSubmit() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onSubmitProcessing', event: { value: buildPayload('request_process') } }); }
-        function handleDelete() { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ emit('trigger-event', { name: 'onDelete', event: { value: { headerId: editingHeaderId.value || null, opid: formOpid.value || null, title: formTitle.value || null } } }); }
+        function handleDelete() {
+            /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */
+            if (!deleteConfirmPending.value) {
+                deleteConfirmPending.value = true;
+                clearTimeout(deleteConfirmTimer);
+                deleteConfirmTimer = setTimeout(() => { deleteConfirmPending.value = false; }, 3000);
+                return;
+            }
+            clearTimeout(deleteConfirmTimer);
+            deleteConfirmPending.value = false;
+            emit('trigger-event', { name: 'onDelete', event: { value: { headerId: editingHeaderId.value || null, opid: formOpid.value || null, title: formTitle.value || null } } });
+        }
+        function handleNevermind() {
+            /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */
+            const hId = editingHeaderId.value;
+            if (hId) { populateFromExisting(hId); viewMode.value = 'preview'; }
+        }
 
         function populateFromExisting(headerId) {
             const header = resolvedOpHeaders.value.find(h => h.id === headerId); if (!header) return;
@@ -579,7 +603,7 @@ export default {
             getAllocations, getAllocatedTotal, allocationStatusClass,
             toggleDropdown, selectPicBda, selectPicOps, addDelivery, removeDelivery,
             attachBooking, detachBooking, updateAllocationQty, updateAllocationField, toggleLabor,
-            handleSplit, removeAllocation, handleSaveDraft, handleSubmit, handleDelete,
+            handleSplit, removeAllocation, handleSaveDraft, handleSubmit, handleDelete, handleNevermind, deleteConfirmPending,
         };
     },
 };
@@ -591,12 +615,11 @@ $blue-dark: #2563eb;
 $blue-50: #eff6ff;
 $red: #ef4444;
 $red-dark: #dc2626;
+$red-50: #fef2f2;
 $green: #059669;
 $green-light: #d1fae5;
 $amber: #f59e0b;
 $amber-50: #fffbeb;
-$purple: #7c3aed;
-$purple-50: #f5f3ff;
 $gray-900: #111827;
 $gray-800: #1e293b;
 $gray-700: #374151;
@@ -608,22 +631,18 @@ $gray-200: #e5e7eb;
 $gray-100: #f3f4f6;
 $gray-50: #f9fafb;
 $white: #ffffff;
+$bg: #f0f0f0;
 $radius: 10px;
 $radius-sm: 6px;
 $radius-xs: 4px;
 $transition: 0.15s ease;
 $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-.orderplan-manager { display: flex; flex-direction: column; width: 100%; min-height: 100%; background: $gray-50; font-family: $font; font-size: 12px; color: $gray-900; }
-
-/* ═══ MODE CLASSES ═══ */
-.mode-preview { }
-.mode-editing { }
-.mode-creating { }
+.orderplan-manager { display: flex; flex-direction: column; width: 100%; min-height: 100%; background: $bg; font-family: $font; font-size: 12px; color: $gray-900; }
 
 /* ═══ TOP BAR ═══ */
 .top-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 20px; background: $white; border-bottom: 1px solid $gray-200; flex-shrink: 0; transition: background $transition, border-color $transition; }
-.top-bar--preview { background: $gray-50; border-bottom: 1px solid $gray-200; }
+.top-bar--preview { background: $white; border-bottom: 1px solid $gray-200; }
 .top-bar--editing { background: $white; border-bottom: 2px solid $amber; }
 .top-bar--creating { background: $white; border-bottom: 2px solid $blue; }
 .top-bar-left { display: flex; align-items: center; gap: 12px; }
@@ -641,14 +660,17 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 
 /* ═══ BUTTONS ═══ */
 .btn-delete { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $red; background: $white; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; svg { width: 14px; height: 14px; } &:hover { color: $white; background: $red; border-color: $red; } }
+.btn-delete--confirm { color: $white; background: $red; border-color: $red; animation: pulse-red 1s infinite; &:hover { background: $red-dark; border-color: $red-dark; } }
+@keyframes pulse-red { 0%, 100% { box-shadow: 0 0 0 0 rgba($red, 0.4); } 50% { box-shadow: 0 0 0 4px rgba($red, 0.15); } }
 .btn-edit { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $amber; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; svg { width: 14px; height: 14px; } &:hover { background: darken($amber, 8%); } }
-.btn-draft { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $gray-600; background: $white; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { background: $gray-50; border-color: $gray-400; } }
-.btn-submit { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $blue; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; &:hover { background: $blue-dark; } }
+.btn-nevermind { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $gray-500; background: transparent; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { color: $gray-700; background: $gray-100; border-color: $gray-400; } }
+.btn-draft { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $gray-700; background: $white; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { background: $gray-50; border-color: $gray-400; } }
+.btn-submit { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $gray-900; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; &:hover { background: $gray-800; } }
 
 /* ═══ FORM CONTENT ═══ */
 .form-content { flex: 1; max-width: 960px; width: 100%; margin: 0 auto; padding: 24px 20px 60px; display: flex; flex-direction: column; gap: 28px; }
 .form-section { display: flex; flex-direction: column; gap: 12px; }
-.section-heading { font-size: 11px; font-weight: 700; color: $gray-400; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; display: flex; align-items: center; gap: 6px; }
+.section-heading { font-size: 11px; font-weight: 700; color: $gray-500; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; display: flex; align-items: center; gap: 6px; }
 .section-icon { width: 15px; height: 15px; flex-shrink: 0; }
 .section-heading-row { display: flex; align-items: center; justify-content: space-between; }
 .meta-card { background: $white; border: 1px solid $gray-200; border-radius: $radius; padding: 20px; }
@@ -656,9 +678,9 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .meta-field { display: flex; flex-direction: column; gap: 4px; }
 .meta-field--full { grid-column: 1 / -1; }
 .field-label { font-size: 10px; font-weight: 700; color: $gray-500; text-transform: uppercase; letter-spacing: 0.04em; }
-.field-input { height: 38px; padding: 0 12px; border: 1.5px solid $gray-200; border-radius: $radius-sm; font-size: 12px; font-family: $font; color: $gray-900; background: $gray-50; outline: none; transition: border-color $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; background: $white; } &:disabled { background: $gray-100; color: $gray-600; cursor: default; &:hover { border-color: $gray-200; } } }
+.field-input { height: 38px; padding: 0 12px; border: 1.5px solid $gray-200; border-radius: $radius-sm; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; transition: border-color $transition, box-shadow $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba($blue, 0.08); } &:disabled { background: $gray-50; color: $gray-500; cursor: default; border-color: $gray-200; } }
 .custom-select { position: relative; }
-.select-trigger { display: flex; align-items: center; width: 100%; height: 38px; padding: 0 10px; border: 1.5px solid $gray-200; border-radius: $radius-sm; background: $gray-50; cursor: pointer; transition: border-color $transition; font-family: $font; font-size: 12px; color: $gray-400; text-align: left; gap: 6px; &.has-value { color: $gray-900; } &:hover:not(:disabled), &:focus:not(:disabled) { border-color: $blue; } &:disabled { background: $gray-100; cursor: default; } }
+.select-trigger { display: flex; align-items: center; width: 100%; height: 38px; padding: 0 10px; border: 1.5px solid $gray-200; border-radius: $radius-sm; background: $white; cursor: pointer; transition: border-color $transition; font-family: $font; font-size: 12px; color: $gray-400; text-align: left; gap: 6px; &.has-value { color: $gray-900; } &:hover:not(:disabled), &:focus:not(:disabled) { border-color: $blue; } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
 .select-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-chevron { flex-shrink: 0; display: flex; align-items: center; color: $gray-400; svg { width: 14px; height: 14px; } }
 .select-options { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: $white; border: 1.5px solid $gray-200; border-radius: $radius-sm; box-shadow: 0 4px 16px rgba(0,0,0,0.08); z-index: 50; list-style: none; margin: 0; padding: 4px 0; max-height: 220px; overflow-y: auto; }
@@ -679,9 +701,9 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .delivery-row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .delivery-field { display: flex; flex-direction: column; gap: 3px; }
 .field-label-sm { font-size: 9px; font-weight: 700; color: $gray-400; text-transform: uppercase; letter-spacing: 0.04em; }
-.field-input-sm { height: 34px; padding: 0 10px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $gray-50; outline: none; transition: border-color $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; background: $white; } &:disabled { background: $gray-100; color: $gray-600; cursor: default; } }
-.field-select { height: 34px; padding: 0 8px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $gray-50; outline: none; cursor: pointer; transition: border-color $transition; &:focus { border-color: $blue; } &:disabled { background: $gray-100; color: $gray-600; cursor: default; } }
-.field-textarea { padding: 8px 10px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $gray-50; outline: none; resize: none; transition: border-color $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; background: $white; } &:disabled { background: $gray-100; color: $gray-600; cursor: default; } }
+.field-input-sm { height: 34px; padding: 0 10px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; transition: border-color $transition, box-shadow $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba($blue, 0.08); } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
+.field-select { height: 34px; padding: 0 8px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; cursor: pointer; transition: border-color $transition; &:focus { border-color: $blue; } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
+.field-textarea { padding: 8px 10px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; resize: none; transition: border-color $transition, box-shadow $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba($blue, 0.08); } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
 .booking-connect-wrap { position: relative; }
 .btn-connect-booking { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700; font-family: $font; color: $white; background: $gray-800; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; svg { width: 14px; height: 14px; } &:hover { background: $gray-700; } }
 .booking-dropdown { position: absolute; right: 0; top: calc(100% + 6px); width: 320px; background: $white; border: 1.5px solid $gray-200; border-radius: $radius; box-shadow: 0 6px 24px rgba(0,0,0,0.1); z-index: 50; overflow: hidden; }
@@ -694,7 +716,7 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .booking-check-icon { width: 16px; height: 16px; color: $green; flex-shrink: 0; }
 .booking-plus-icon { width: 16px; height: 16px; color: $gray-400; flex-shrink: 0; }
 .booking-dropdown-empty { padding: 16px; text-align: center; font-size: 12px; color: $gray-400; }
-.bookings-empty { display: flex; flex-direction: column; align-items: center; padding: 48px 20px; border: 2px dashed $gray-200; border-radius: $radius; background: rgba($gray-50, 0.5); }
+.bookings-empty { display: flex; flex-direction: column; align-items: center; padding: 48px 20px; border: 2px dashed $gray-200; border-radius: $radius; background: $white; }
 .bookings-empty-icon { width: 32px; height: 32px; color: $gray-300; margin-bottom: 10px; }
 .bookings-empty-text { font-size: 13px; font-weight: 600; color: $gray-500; margin: 0; }
 .bookings-empty-hint { font-size: 11px; color: $gray-400; margin: 4px 0 0; }
@@ -728,9 +750,9 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .alloc-row { display: grid; grid-template-columns: 90px 1fr 1fr 1fr 70px; gap: 8px; padding: 8px 12px; align-items: start; border-bottom: 1px solid $gray-100; transition: background $transition; &:last-child { border-bottom: none; } &:hover { background: $white; } &.alloc-row--split { border-left: 3px solid $blue; } &.alloc-row--readonly { grid-template-columns: 90px 1fr 1fr 1fr; } }
 .alloc-cell { display: flex; flex-direction: column; gap: 4px; }
 .alloc-cell-action { flex-direction: row; justify-content: center; align-items: center; gap: 4px; }
-.alloc-qty-input { width: 72px; height: 32px; border: 1px solid $gray-300; border-radius: $radius-xs; text-align: center; font-family: $font; font-size: 12px; font-weight: 600; color: $gray-900; background: $white; outline: none; transition: border-color $transition; -moz-appearance: textfield; &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; } &:focus { border-color: $blue; } &:disabled { background: $gray-100; color: $gray-600; cursor: default; border-color: $gray-200; } }
+.alloc-qty-input { width: 72px; height: 32px; border: 1px solid $gray-200; border-radius: $radius-xs; text-align: center; font-family: $font; font-size: 12px; font-weight: 600; color: $gray-900; background: $white; outline: none; transition: border-color $transition, box-shadow $transition; -moz-appearance: textfield; &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; } &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba($blue, 0.08); } &:disabled { background: $gray-50; color: $gray-500; cursor: default; border-color: $gray-200; } }
 .alloc-split-label { font-size: 9px; color: $gray-400; }
-.alloc-select { width: 100%; height: 32px; padding: 0 6px; border: 1px solid $gray-300; border-radius: $radius-xs; font-size: 11px; font-family: $font; color: $gray-900; background: $white; outline: none; cursor: pointer; transition: border-color $transition; &:focus { border-color: $blue; } &:disabled { background: $gray-100; color: $gray-600; cursor: default; border-color: $gray-200; } }
+.alloc-select { width: 100%; height: 32px; padding: 0 6px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 11px; font-family: $font; color: $gray-900; background: $white; outline: none; cursor: pointer; transition: border-color $transition; &:focus { border-color: $blue; } &:disabled { background: $gray-50; color: $gray-500; cursor: default; border-color: $gray-200; } }
 .alloc-dest-type { font-size: 9px; color: $gray-400; }
 .alloc-mockup-input { width: 100%; height: 26px; padding: 0 6px; border: none; border-bottom: 1px solid $gray-200; font-size: 11px; font-family: $font; color: $gray-700; background: transparent; outline: none; transition: border-color $transition; &::placeholder { color: $gray-400; } &:focus { border-bottom-color: $blue; } &:disabled { color: $gray-500; cursor: default; } }
 .alloc-labor-check { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: $gray-600; input[type="checkbox"] { width: 14px; height: 14px; accent-color: $blue; cursor: pointer; &:disabled { cursor: default; opacity: 0.6; } } }
@@ -753,6 +775,6 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 @media (max-width: 480px) {
     .delivery-row-2col { grid-template-columns: 1fr; }
     .top-bar-actions { flex-direction: column; }
-    .btn-draft, .btn-submit, .btn-edit { width: 100%; text-align: center; justify-content: center; }
+    .btn-draft, .btn-submit, .btn-edit, .btn-delete, .btn-nevermind { width: 100%; text-align: center; justify-content: center; }
 }
 </style>
