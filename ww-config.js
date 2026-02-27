@@ -28,6 +28,11 @@ export default {
                 isCollapsible: true,
                 properties: ['inventoryData', 'teammatesList'],
             },
+            {
+                label: 'Dropdown Options',
+                isCollapsible: true,
+                properties: ['customizationOptions', 'laborOptions'],
+            },
         ],
     },
     triggerEvents: [
@@ -237,6 +242,44 @@ export default {
             bindingValidation: {
                 type: 'array',
                 tooltip: 'Array of teammates: { id, name, type, email, phone }',
+            },
+            /* wwEditor:end */
+        },
+        customizationOptions: {
+            label: { en: 'Customization Options' },
+            type: 'ObjectList',
+            section: 'settings',
+            bindable: true,
+            defaultValue: [
+                { label: 'None', value: 'None' },
+                { label: 'UV 1 Logo', value: 'UV 1 Logo' },
+                { label: 'UV 2 Logos', value: 'UV 2 Logos' },
+                { label: 'UV 360', value: 'UV 360' },
+                { label: 'Laser Engraving', value: 'Laser Engraving' },
+                { label: 'Deboss', value: 'Deboss' },
+            ],
+            /* wwEditor:start */
+            bindingValidation: {
+                type: 'array',
+                tooltip: 'Array of { label, value }. First option is the "none" default.',
+            },
+            /* wwEditor:end */
+        },
+        laborOptions: {
+            label: { en: 'Labor Options' },
+            type: 'ObjectList',
+            section: 'settings',
+            bindable: true,
+            defaultValue: [
+                { label: 'None', value: '' },
+                { label: 'Box Sleeving', value: 'sleeving' },
+                { label: 'Standard Gift Box', value: 'giftbox' },
+                { label: 'Gift Box + Addons', value: 'giftbox_addons' },
+            ],
+            /* wwEditor:start */
+            bindingValidation: {
+                type: 'array',
+                tooltip: 'Array of { label, value }. Use value="" for the "none" option.',
             },
             /* wwEditor:end */
         },

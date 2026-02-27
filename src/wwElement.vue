@@ -246,8 +246,8 @@
                                 <div class="alloc-table-head">
                                     <span class="alloc-th alloc-th-qty">Quantity</span>
                                     <span class="alloc-th alloc-th-dest">Destination</span>
-                                    <span class="alloc-th alloc-th-cust">Customization</span>
-                                    <span class="alloc-th alloc-th-labor">Labor & Mockup</span>
+                                    <span class="alloc-th alloc-th-cust">Customization & Mockup</span>
+                                    <span class="alloc-th alloc-th-labor">Labor</span>
                                     <span v-if="!isReadOnly" class="alloc-th alloc-th-action">Action</span>
                                 </div>
                                 <div class="alloc-table-body">
@@ -265,15 +265,14 @@
                                             </div>
                                             <div class="alloc-cell alloc-cell-cust">
                                                 <select class="alloc-select" :value="alloc.customization" :disabled="isReadOnly" @change="updateAllocationField(ab.booking_headerid, item.id, aIdx, 'customization', $event.target.value)">
-                                                    <option v-for="c in CUSTOMIZATION_OPTIONS" :key="c" :value="c">{{ c }}</option>
+                                                    <option v-for="c in customizationOptions" :key="c.value" :value="c.value">{{ c.label }}</option>
                                                 </select>
-                                                <input v-if="alloc.customization !== 'None'" type="text" class="alloc-mockup-input" placeholder="Paste mockup link..." :value="alloc.mockupLink" :disabled="isReadOnly" @input="updateAllocationField(ab.booking_headerid, item.id, aIdx, 'mockupLink', $event.target.value)" />
+                                                <input v-if="alloc.customization && alloc.customization !== 'None'" type="text" class="alloc-mockup-input" placeholder="Paste mockup link..." :value="alloc.mockupLink" :disabled="isReadOnly" @input="updateAllocationField(ab.booking_headerid, item.id, aIdx, 'mockupLink', $event.target.value)" />
                                             </div>
                                             <div class="alloc-cell alloc-cell-labor">
-                                                <label v-for="lo in LABOR_OPTIONS" :key="lo.id" class="alloc-labor-check">
-                                                    <input type="checkbox" :checked="alloc.labor && alloc.labor[lo.id]" :disabled="isReadOnly" @change="toggleLabor(ab.booking_headerid, item.id, aIdx, lo.id, $event.target.checked)" />
-                                                    <span>{{ lo.label }}</span>
-                                                </label>
+                                                <select class="alloc-select" :value="alloc.labor || ''" :disabled="isReadOnly" @change="setLabor(ab.booking_headerid, item.id, aIdx, $event.target.value)">
+                                                    <option v-for="lo in laborOptions" :key="lo.value" :value="lo.value">{{ lo.label }}</option>
+                                                </select>
                                             </div>
                                             <div v-if="!isReadOnly" class="alloc-cell alloc-cell-action">
                                                 <button type="button" class="btn-split" :class="{ 'btn-split--disabled': alloc.quantity_assigned < 2 }" :disabled="alloc.quantity_assigned < 2" title="Split Quantity" @click="handleSplit(ab.booking_headerid, item.id, aIdx)">
@@ -300,11 +299,19 @@
 import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
 const DELIVERY_TYPES = ['Klang Valley', 'West Malaysia', 'East Malaysia', 'Singapore', 'Self Pickup'];
-const CUSTOMIZATION_OPTIONS = ['None', 'UV 1 Logo', 'UV 2 Logos', 'UV 360', 'Laser Engraving', 'Deboss'];
-const LABOR_OPTIONS = [
-    { id: 'sleeving', label: 'Box Sleeving' },
-    { id: 'giftbox', label: 'Standard Gift Box' },
-    { id: 'giftbox_addons', label: 'Gift Box + Addons' },
+const DEFAULT_CUSTOMIZATION_OPTIONS = [
+    { label: 'None', value: 'None' },
+    { label: 'UV 1 Logo', value: 'UV 1 Logo' },
+    { label: 'UV 2 Logos', value: 'UV 2 Logos' },
+    { label: 'UV 360', value: 'UV 360' },
+    { label: 'Laser Engraving', value: 'Laser Engraving' },
+    { label: 'Deboss', value: 'Deboss' },
+];
+const DEFAULT_LABOR_OPTIONS = [
+    { label: 'None', value: '' },
+    { label: 'Box Sleeving', value: 'sleeving' },
+    { label: 'Standard Gift Box', value: 'giftbox' },
+    { label: 'Gift Box + Addons', value: 'giftbox_addons' },
 ];
 
 function generateUid() {
@@ -328,7 +335,7 @@ function makeDefaultDelivery(label) {
     return { _uid: generateUid(), _existingId: null, label: label || 'Main Office', deliverytype: 'Klang Valley', address: '', remarks: '', pic_name: '', pic_phone: '', deadline: '' };
 }
 function makeDefaultAllocation(deliveryUid, quantity, splitgroupid) {
-    return { _uid: generateUid(), _existingId: null, quantity_assigned: quantity, deliveries_headerid: deliveryUid, customization: 'None', mockupLink: '', labor: {}, splitgroupid: splitgroupid || generateUid() };
+    return { _uid: generateUid(), _existingId: null, quantity_assigned: quantity, deliveries_headerid: deliveryUid, customization: 'None', mockupLink: '', labor: null, splitgroupid: splitgroupid || generateUid() };
 }
 
 export default {
@@ -349,6 +356,17 @@ export default {
         const resolvedOpDeliveries = computed(() => wwLib.wwUtils.getDataFromCollection(props.content?.orderplanDeliveriesData) || []);
         const resolvedOpAttBookings = computed(() => wwLib.wwUtils.getDataFromCollection(props.content?.orderplanAttBookingsData) || []);
         const resolvedOpLines = computed(() => wwLib.wwUtils.getDataFromCollection(props.content?.orderplanLinesData) || []);
+
+        const customizationOptions = computed(() => {
+            const raw = props.content?.customizationOptions;
+            const arr = Array.isArray(raw) ? raw : [];
+            return arr.length > 0 ? arr : DEFAULT_CUSTOMIZATION_OPTIONS;
+        });
+        const laborOptions = computed(() => {
+            const raw = props.content?.laborOptions;
+            const arr = Array.isArray(raw) ? raw : [];
+            return arr.length > 0 ? arr : DEFAULT_LABOR_OPTIONS;
+        });
 
         const editingHeaderId = computed(() => props.content?.editingHeaderId || '');
         const actionStatus = computed(() => {
@@ -501,7 +519,7 @@ export default {
 
         function updateAllocationQty(bhId, biId, aIdx, raw) { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ const arr = formAllocations[allocKey(bhId, biId)]; if (!arr?.[aIdx]) return; arr[aIdx].quantity_assigned = Math.max(0, parseInt(raw) || 0); }
         function updateAllocationField(bhId, biId, aIdx, f, v) { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ const arr = formAllocations[allocKey(bhId, biId)]; if (!arr?.[aIdx]) return; arr[aIdx][f] = v; }
-        function toggleLabor(bhId, biId, aIdx, lid, chk) { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ const arr = formAllocations[allocKey(bhId, biId)]; if (!arr?.[aIdx]) return; if (!arr[aIdx].labor) arr[aIdx].labor = {}; arr[aIdx].labor[lid] = chk; }
+        function setLabor(bhId, biId, aIdx, val) { /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */ const arr = formAllocations[allocKey(bhId, biId)]; if (!arr?.[aIdx]) return; arr[aIdx].labor = val || null; }
         function handleSplit(bhId, biId, aIdx) {
             /* wwEditor:start */ if (props.wwEditorState?.isEditing) return; /* wwEditor:end */
             const arr = formAllocations[allocKey(bhId, biId)]; if (!arr?.[aIdx]) return;
@@ -509,7 +527,7 @@ export default {
             const h1 = Math.floor(o.quantity_assigned / 2), h2 = o.quantity_assigned - h1;
             o.quantity_assigned = h1;
             const na = makeDefaultAllocation(o.deliveries_headerid, h2, o.splitgroupid);
-            na.customization = o.customization; na.mockupLink = o.mockupLink; na.labor = deepClone(o.labor || {});
+            na.customization = o.customization; na.mockupLink = o.mockupLink; na.labor = o.labor || null;
             arr.splice(aIdx + 1, 0, na);
         }
         function removeAllocation(bhId, biId, aIdx) {
@@ -530,7 +548,7 @@ export default {
             const uidToDb = {};
             const orderplan_deliveries = formDeliveries.value.map(d => { const db = d._existingId || null; uidToDb[d._uid] = db; return { id: db, headerid: hId, label: d.label || null, deliverytype: d.deliverytype || null, address: d.address || null, remarks: d.remarks || null, pic_name: d.pic_name || null, pic_phone: d.pic_phone || null, deadline: d.deadline || null, _uid: d._uid }; });
             const orderplan_lines = [];
-            for (const k in formAllocations) { const arr = formAllocations[k]; if (!Array.isArray(arr)) continue; const biId = k.split('::')[1]; for (const a of arr) { orderplan_lines.push({ id: a._existingId || null, headerid: hId, bookingitems_headerid: biId, deliveries_headerid: uidToDb[a.deliveries_headerid] || null, _deliveries_uid: a.deliveries_headerid, customization: a.customization === 'None' ? null : a.customization, quantity_assigned: a.quantity_assigned, splitgroupid: a.splitgroupid, mockup_link: a.mockupLink || null, labor: a.labor && Object.keys(a.labor).some(lk => a.labor[lk]) ? a.labor : null }); } }
+            for (const k in formAllocations) { const arr = formAllocations[k]; if (!Array.isArray(arr)) continue; const biId = k.split('::')[1]; for (const a of arr) { orderplan_lines.push({ id: a._existingId || null, headerid: hId, bookingitems_headerid: biId, deliveries_headerid: uidToDb[a.deliveries_headerid] || null, _deliveries_uid: a.deliveries_headerid, customization: a.customization === 'None' ? null : a.customization, quantity_assigned: a.quantity_assigned, splitgroupid: a.splitgroupid, mockup_link: a.mockupLink || null, labor: a.labor || null }); } }
             const changes = computeChanges(orderplan_headers, orderplan_attbookings, orderplan_deliveries, orderplan_lines);
             return { action, orderplan_headers, orderplan_attbookings, orderplan_deliveries, orderplan_lines, changes };
         }
@@ -625,7 +643,7 @@ export default {
             for (const k in formAllocations) delete formAllocations[k];
             const lines = resolvedOpLines.value.filter(l => l.headerid === headerId);
             const lbi = {}; let unresolved = false;
-            for (const l of lines) { const bi = bookingItemLookup.value[l.bookingitems_headerid]; if (!bi) { unresolved = true; continue; } const k = allocKey(bi.headerid, l.bookingitems_headerid); if (!lbi[k]) lbi[k] = []; lbi[k].push({ _uid: generateUid(), _existingId: l.id || null, quantity_assigned: l.quantity_assigned || 0, deliveries_headerid: dIdToUid[l.deliveries_headerid] || formDeliveries.value[0]?._uid || '', customization: l.customization || 'None', mockupLink: '', labor: {}, splitgroupid: l.splitgroupid || generateUid() }); }
+            for (const l of lines) { const bi = bookingItemLookup.value[l.bookingitems_headerid]; if (!bi) { unresolved = true; continue; } const k = allocKey(bi.headerid, l.bookingitems_headerid); if (!lbi[k]) lbi[k] = []; lbi[k].push({ _uid: generateUid(), _existingId: l.id || null, quantity_assigned: l.quantity_assigned || 0, deliveries_headerid: dIdToUid[l.deliveries_headerid] || formDeliveries.value[0]?._uid || '', customization: l.customization || 'None', mockupLink: '', labor: l.labor || null, splitgroupid: l.splitgroupid || generateUid() }); }
             for (const k in lbi) formAllocations[k] = lbi[k];
             if (unresolved && Object.keys(lbi).length === 0 && lines.length > 0) { originalData.value = null; return; }
             const fuid = formDeliveries.value[0]?._uid || '';
@@ -653,7 +671,7 @@ export default {
         });
 
         return {
-            DELIVERY_TYPES, CUSTOMIZATION_OPTIONS, LABOR_OPTIONS,
+            DELIVERY_TYPES, customizationOptions, laborOptions,
             viewMode, isReadOnly, topBarTitle, topBarSubtitle, modeBadgeLabel, enterEditMode,
             formTitle, formQuoteRef, formInvoiceRef, formPicBda, formPicOps, formOpid,
             formDeliveries, formAttachedBookings, formAllocations, attachedBookingIds,
@@ -663,7 +681,7 @@ export default {
             getBookingNumber, getBookingTitle, getInventoryField, getBookingItems, getDeliveryType,
             getAllocations, getAllocatedTotal, allocationStatusClass,
             toggleDropdown, selectPicBda, selectPicOps, addDelivery, removeDelivery,
-            attachBooking, detachBooking, updateAllocationQty, updateAllocationField, toggleLabor,
+            attachBooking, detachBooking, updateAllocationQty, updateAllocationField, setLabor,
             handleSplit, removeAllocation, handleSaveDraft, handleSubmit, handleDelete, handleNevermind, handleRetry,
             deleteConfirmPending, pendingAction, isAttempting, actionFailed, actionFailedLabel,
         };
@@ -830,7 +848,6 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .alloc-select { width: 100%; height: 32px; padding: 0 6px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 11px; font-family: $font; color: $gray-900; background: $white; outline: none; cursor: pointer; transition: border-color $transition; &:focus { border-color: $blue; } &:disabled { background: $gray-50; color: $gray-500; cursor: default; border-color: $gray-200; } }
 .alloc-dest-type { font-size: 9px; color: $gray-400; }
 .alloc-mockup-input { width: 100%; height: 26px; padding: 0 6px; border: none; border-bottom: 1px solid $gray-200; font-size: 11px; font-family: $font; color: $gray-700; background: transparent; outline: none; transition: border-color $transition; &::placeholder { color: $gray-400; } &:focus { border-bottom-color: $blue; } &:disabled { color: $gray-500; cursor: default; } }
-.alloc-labor-check { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: $gray-600; input[type="checkbox"] { width: 14px; height: 14px; accent-color: $blue; cursor: pointer; &:disabled { cursor: default; opacity: 0.6; } } }
 .btn-split { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: $blue-50; color: $blue; border-radius: $radius-xs; cursor: pointer; transition: background $transition, opacity $transition; svg { width: 14px; height: 14px; } &:hover:not(:disabled) { background: darken($blue-50, 6%); } &.btn-split--disabled { opacity: 0.35; cursor: not-allowed; } }
 .btn-remove-alloc { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: none; color: $gray-400; border-radius: $radius-xs; cursor: pointer; transition: color $transition, background $transition; svg { width: 14px; height: 14px; } &:hover { color: $red; background: rgba($red, 0.06); } }
 
