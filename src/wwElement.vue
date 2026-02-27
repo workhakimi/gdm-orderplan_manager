@@ -700,6 +700,8 @@ $green: #059669;
 $green-light: #d1fae5;
 $amber: #f59e0b;
 $amber-50: #fffbeb;
+$yellow: #eab308;
+$yellow-dark: #ca8a04;
 $gray-900: #111827;
 $gray-800: #1e293b;
 $gray-700: #374151;
@@ -739,20 +741,20 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .mode-badge--creating { background: $blue-50; color: $blue; }
 
 /* ═══ BUTTONS ═══ */
-.btn-delete { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $red; background: $white; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; svg { width: 14px; height: 14px; } &:hover { color: $white; background: $red; border-color: $red; } }
+.btn-delete { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $red; border: 1px solid $red; border-radius: $radius-sm; cursor: pointer; transition: all $transition; svg { width: 14px; height: 14px; } &:hover { background: $red-dark; border-color: $red-dark; } }
 .btn-delete--confirm { color: $white; background: $red; border-color: $red; animation: pulse-red 1s infinite; &:hover { background: $red-dark; border-color: $red-dark; } }
 @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 0 0 rgba($red, 0.4); } 50% { box-shadow: 0 0 0 4px rgba($red, 0.15); } }
 .btn-edit { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $amber; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; svg { width: 14px; height: 14px; } &:hover { background: darken($amber, 8%); } }
-.btn-nevermind { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $gray-500; background: transparent; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { color: $gray-700; background: $gray-100; border-color: $gray-400; } }
-.btn-draft { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $gray-700; background: $white; border: 1px solid $gray-300; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { background: $gray-50; border-color: $gray-400; } }
+.btn-nevermind { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $gray-900; background: $yellow; border: 1px solid $yellow; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { background: $yellow-dark; border-color: $yellow-dark; } }
+.btn-draft { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $blue; border: 1px solid $blue; border-radius: $radius-sm; cursor: pointer; transition: all $transition; &:hover { background: $blue-dark; border-color: $blue-dark; } }
 .btn-submit { padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $gray-900; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; &:hover { background: $gray-800; } }
 
 /* ═══ ATTEMPTING STATE ═══ */
 .btn--attempting { opacity: 0.7; cursor: wait; pointer-events: none; display: flex; align-items: center; gap: 6px; }
 .btn-draft:disabled, .btn-submit:disabled, .btn-edit:disabled, .btn-nevermind:disabled { opacity: 0.5; cursor: not-allowed; }
 .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: currentColor; border-radius: 50%; animation: spin 0.6s linear infinite; flex-shrink: 0; }
-.btn-draft .spinner { border: 2px solid rgba(0,0,0,0.1); border-top-color: $gray-600; }
-.btn-nevermind .spinner { border: 2px solid rgba(0,0,0,0.1); border-top-color: $gray-500; }
+.btn-draft .spinner { border: 2px solid rgba(255,255,255,0.3); border-top-color: $white; }
+.btn-nevermind .spinner { border: 2px solid rgba(0,0,0,0.15); border-top-color: $gray-800; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ═══ FAILED TOAST ═══ */
