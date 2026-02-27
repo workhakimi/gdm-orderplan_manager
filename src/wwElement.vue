@@ -643,7 +643,7 @@ export default {
             for (const k in formAllocations) delete formAllocations[k];
             const lines = resolvedOpLines.value.filter(l => l.headerid === headerId);
             const lbi = {}; let unresolved = false;
-            for (const l of lines) { const bi = bookingItemLookup.value[l.bookingitems_headerid]; if (!bi) { unresolved = true; continue; } const k = allocKey(bi.headerid, l.bookingitems_headerid); if (!lbi[k]) lbi[k] = []; lbi[k].push({ _uid: generateUid(), _existingId: l.id || null, quantity_assigned: l.quantity_assigned || 0, deliveries_headerid: dIdToUid[l.deliveries_headerid] || formDeliveries.value[0]?._uid || '', customization: l.customization || 'None', mockupLink: '', labor: l.labor || null, splitgroupid: l.splitgroupid || generateUid() }); }
+            for (const l of lines) { const bi = bookingItemLookup.value[l.bookingitems_headerid]; if (!bi) { unresolved = true; continue; } const k = allocKey(bi.headerid, l.bookingitems_headerid); if (!lbi[k]) lbi[k] = []; lbi[k].push({ _uid: generateUid(), _existingId: l.id || null, quantity_assigned: l.quantity_assigned || 0, deliveries_headerid: dIdToUid[l.deliveries_headerid] || formDeliveries.value[0]?._uid || '', customization: l.customization || 'None', mockupLink: l.mockup_link || '', labor: l.labor || null, splitgroupid: l.splitgroupid || generateUid() }); }
             for (const k in lbi) formAllocations[k] = lbi[k];
             if (unresolved && Object.keys(lbi).length === 0 && lines.length > 0) { originalData.value = null; return; }
             const fuid = formDeliveries.value[0]?._uid || '';
