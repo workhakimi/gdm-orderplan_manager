@@ -1,27 +1,43 @@
 <template>
     <div class="orderplan-manager" :class="'mode-' + viewMode">
         <!-- ═══════════ STICKY TOP BAR ═══════════ -->
-        <div class="top-bar" :class="'top-bar--' + viewMode">
+        <div class="top-bar" :class="[
+            'top-bar--' + viewMode,
+            isSubmittedLock && viewMode === 'preview' ? 'top-bar--submitted' : '',
+            isIssueRaised && viewMode === 'preview' ? 'top-bar--issue' : ''
+        ]">
             <div class="top-bar-left">
                 <div class="top-bar-info">
                     <div class="top-bar-title-row">
                         <h2 class="top-bar-title">{{ topBarTitle }}</h2>
-                        <span class="mode-badge" :class="'mode-badge--' + viewMode">{{ modeBadgeLabel }}</span>
+                        <span class="mode-badge" :class="[
+                            'mode-badge--' + viewMode,
+                            isSubmittedLock && viewMode === 'preview' ? 'mode-badge--submitted' : '',
+                            isIssueRaised && viewMode === 'preview' ? 'mode-badge--issue' : ''
+                        ]">{{ modeBadgeLabel }}</span>
                     </div>
                     <p class="top-bar-subtitle">{{ topBarSubtitle }}</p>
                 </div>
             </div>
             <div class="top-bar-actions">
                 <template v-if="viewMode === 'preview'">
-                    <button type="button" class="btn-delete" :class="{ 'btn-delete--confirm': deleteConfirmPending, 'btn--attempting': pendingAction === 'delete' }" :disabled="isAttempting" @click="handleDelete">
-                        <span v-if="pendingAction === 'delete'" class="spinner"></span>
-                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        {{ pendingAction === 'delete' ? 'Attempting...' : (deleteConfirmPending ? 'Confirm Delete?' : 'Delete') }}
-                    </button>
-                    <button type="button" class="btn-edit" :disabled="isAttempting" @click="enterEditMode">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        Edit Plan
-                    </button>
+                    <template v-if="isSubmittedLock">
+                        <span class="btn-status-submitted">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                            Submitted for Processing
+                        </span>
+                    </template>
+                    <template v-else>
+                        <button type="button" class="btn-delete" :class="{ 'btn-delete--confirm': deleteConfirmPending, 'btn--attempting': pendingAction === 'delete' }" :disabled="isAttempting" @click="handleDelete">
+                            <span v-if="pendingAction === 'delete'" class="spinner"></span>
+                            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            {{ pendingAction === 'delete' ? 'Attempting...' : (deleteConfirmPending ? 'Confirm Delete?' : 'Delete') }}
+                        </button>
+                        <button type="button" class="btn-edit" :disabled="isAttempting" @click="enterEditMode">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit Plan
+                        </button>
+                    </template>
                 </template>
                 <template v-else>
                     <button v-if="viewMode === 'editing'" type="button" class="btn-delete" :class="{ 'btn-delete--confirm': deleteConfirmPending, 'btn--attempting': pendingAction === 'delete' }" :disabled="isAttempting" @click="handleDelete">
@@ -232,7 +248,10 @@
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                                 </div>
                                 <div class="sku-details">
-                                    <div class="sku-model">{{ getInventoryField(item.sku, 'model') || 'Unknown Item' }}</div>
+                                    <div class="sku-model-row">
+                                        <span class="sku-model">{{ getInventoryField(item.sku, 'model') || 'Unknown Item' }}</span>
+                                        <span v-if="getBookingItemStatus(item.id)" class="sku-item-status" :class="'sku-item-status--' + getBookingItemStatus(item.id).toLowerCase().replace(/\s+/g, '-')">{{ getBookingItemStatus(item.id) }}</span>
+                                    </div>
                                     <div class="sku-variant">{{ getInventoryField(item.sku, 'color') || '-' }} · {{ item.sku }}</div>
                                 </div>
                                 <div class="sku-allocation-summary" :class="allocationStatusClass(ab.booking_headerid, item.id, item.quantity)">
@@ -382,9 +401,15 @@ export default {
         const actionFailed = ref(false);
         const actionFailedLabel = ref('');
 
+        // ── Header status from loaded data ──
+        const headerStatus = ref('');
+        const isSubmittedLock = computed(() => headerStatus.value === 'Submitted');
+        const isIssueRaised = computed(() => headerStatus.value === 'Issue Raised');
+
         // ── View mode: 'preview' | 'editing' | 'creating' ──
         const viewMode = ref('creating');
         const isReadOnly = computed(() => viewMode.value === 'preview');
+        const canEditOrDelete = computed(() => !isSubmittedLock.value);
 
         const topBarTitle = computed(() => {
             if (viewMode.value === 'preview') return formTitle.value || 'Order Plan';
@@ -397,7 +422,11 @@ export default {
             return 'Draft mode';
         });
         const modeBadgeLabel = computed(() => {
-            if (viewMode.value === 'preview') return 'Preview';
+            if (viewMode.value === 'preview') {
+                if (isSubmittedLock.value) return 'Submitted';
+                if (isIssueRaised.value) return 'Issue Raised';
+                return 'Preview';
+            }
             if (viewMode.value === 'editing') return 'Editing';
             return 'New';
         });
@@ -406,6 +435,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
+            if (isSubmittedLock.value) return;
             viewMode.value = 'editing';
         }
 
@@ -467,6 +497,7 @@ export default {
         function getBookingTitle(hId) { return bookingHeadersLookup.value[hId]?.bookingtitle || ''; }
         function getInventoryField(sku, field) { return inventoryLookup.value[sku]?.[field] || ''; }
         function getBookingItems(bhId) { return bookingItemsByHeader.value[bhId] || []; }
+        function getBookingItemStatus(biId) { return bookingItemLookup.value[biId]?.status || ''; }
         function getDeliveryType(uid) { const d = formDeliveries.value.find(dd => dd._uid === uid); return d ? d.deliverytype : ''; }
 
         function allocKey(bhId, biId) { return `${bhId}::${biId}`; }
@@ -630,6 +661,7 @@ export default {
 
         function populateFromExisting(headerId) {
             const header = resolvedOpHeaders.value.find(h => h.id === headerId); if (!header) return;
+            headerStatus.value = header.status || '';
             formOpid.value = header.opid || ''; formTitle.value = header.title || ''; formQuoteRef.value = header.quoteref || ''; formInvoiceRef.value = header.invoiceref || '';
             formPicBda.value = header.pic_bda || null; formPicOps.value = header.pic_ops || null;
             if (header.pic_bda) { const tm = resolvedTeammates.value.find(t => t.id === header.pic_bda); formPicBdaName.value = tm ? tm.name : ''; }
@@ -652,6 +684,7 @@ export default {
         }
 
         function resetForm() {
+            headerStatus.value = '';
             formOpid.value = ''; formTitle.value = ''; formQuoteRef.value = ''; formInvoiceRef.value = '';
             formPicBda.value = null; formPicBdaName.value = ''; formPicOps.value = null; formPicOpsName.value = '';
             formDeliveries.value = [makeDefaultDelivery('Main Office')]; formAttachedBookings.value = [];
@@ -673,12 +706,13 @@ export default {
         return {
             DELIVERY_TYPES, customizationOptions, laborOptions,
             viewMode, isReadOnly, topBarTitle, topBarSubtitle, modeBadgeLabel, enterEditMode,
+            headerStatus, isSubmittedLock, isIssueRaised, canEditOrDelete,
             formTitle, formQuoteRef, formInvoiceRef, formPicBda, formPicOps, formOpid,
             formDeliveries, formAttachedBookings, formAllocations, attachedBookingIds,
             openDropdown, picBdaSearch, picOpsSearch, bookingSearch,
             picBdaSelectEl, picOpsSelectEl, bookingConnectEl, picBdaSearchInput, picOpsSearchInput, bookingSearchInput,
             filteredTeammatesBda, filteredTeammatesOps, filteredBookingHeaders, picBdaDisplay, picOpsDisplay,
-            getBookingNumber, getBookingTitle, getInventoryField, getBookingItems, getDeliveryType,
+            getBookingNumber, getBookingTitle, getInventoryField, getBookingItems, getBookingItemStatus, getDeliveryType,
             getAllocations, getAllocatedTotal, allocationStatusClass,
             toggleDropdown, selectPicBda, selectPicOps, addDelivery, removeDelivery,
             attachBooking, detachBooking, updateAllocationQty, updateAllocationField, setLabor,
@@ -697,7 +731,12 @@ $red: #ef4444;
 $red-dark: #dc2626;
 $red-50: #fef2f2;
 $green: #059669;
+$green-dark: #047857;
 $green-light: #d1fae5;
+$green-50: #ecfdf5;
+$orange: #ea580c;
+$orange-dark: #c2410c;
+$orange-50: #fff7ed;
 $amber: #f59e0b;
 $amber-50: #fffbeb;
 $yellow: #eab308;
@@ -725,6 +764,8 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 /* ═══ TOP BAR ═══ */
 .top-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 20px; background: $white; border-bottom: 1px solid $gray-200; flex-shrink: 0; transition: background $transition, border-color $transition; }
 .top-bar--preview { background: $white; border-bottom: 1px solid $gray-200; }
+.top-bar--submitted { border-bottom: 2px solid $green; }
+.top-bar--issue { border-bottom: 2px solid $orange; }
 .top-bar--editing { background: $white; border-bottom: 2px solid $amber; }
 .top-bar--creating { background: $white; border-bottom: 2px solid $blue; }
 .top-bar-left { display: flex; align-items: center; gap: 12px; }
@@ -737,10 +778,13 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 /* ═══ MODE BADGE ═══ */
 .mode-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
 .mode-badge--preview { background: $gray-100; color: $gray-500; }
+.mode-badge--submitted { background: $green-50; color: $green; }
+.mode-badge--issue { background: $orange-50; color: $orange; }
 .mode-badge--editing { background: $amber-50; color: $amber; }
 .mode-badge--creating { background: $blue-50; color: $blue; }
 
 /* ═══ BUTTONS ═══ */
+.btn-status-submitted { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $green; border: none; border-radius: $radius-sm; cursor: default; svg { width: 14px; height: 14px; } }
 .btn-delete { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; font-family: $font; color: $white; background: $red; border: 1px solid $red; border-radius: $radius-sm; cursor: pointer; transition: all $transition; svg { width: 14px; height: 14px; } &:hover { background: $red-dark; border-color: $red-dark; } }
 .btn-delete--confirm { color: $white; background: $red; border-color: $red; animation: pulse-red 1s infinite; &:hover { background: $red-dark; border-color: $red-dark; } }
 @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 0 0 rgba($red, 0.4); } 50% { box-shadow: 0 0 0 4px rgba($red, 0.15); } }
@@ -827,7 +871,13 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .sku-thumb { width: 44px; height: 44px; border-radius: $radius-sm; object-fit: cover; border: 1px solid $gray-200; flex-shrink: 0; }
 .sku-thumb-placeholder { width: 44px; height: 44px; border-radius: $radius-sm; background: $gray-100; display: flex; align-items: center; justify-content: center; color: $gray-400; flex-shrink: 0; svg { width: 22px; height: 22px; } }
 .sku-details { flex: 1; min-width: 0; }
+.sku-model-row { display: flex; align-items: center; gap: 6px; }
 .sku-model { font-size: 13px; font-weight: 700; color: $gray-900; }
+.sku-item-status { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 10px; font-size: 9px; font-weight: 700; letter-spacing: 0.03em; text-transform: capitalize; white-space: nowrap; }
+.sku-item-status--booked { background: $blue-50; color: $blue; }
+.sku-item-status--processing { background: $amber-50; color: $amber; }
+.sku-item-status--delivered { background: $green-50; color: $green; }
+.sku-item-status--issue-raised { background: $orange-50; color: $orange; }
 .sku-variant { font-size: 11px; color: $gray-500; margin-top: 1px; }
 .sku-allocation-summary { text-align: right; flex-shrink: 0; }
 .sku-allocated-count { font-size: 20px; font-weight: 700; color: $gray-900; }
