@@ -807,7 +807,7 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .action-failed-retry { font-size: 11px; color: $red; text-decoration: underline; margin-left: auto; }
 
 /* ═══ FORM CONTENT ═══ */
-.form-content { flex: 1; max-width: 960px; width: 100%; margin: 0 auto; padding: 24px 20px 60px; display: flex; flex-direction: column; gap: 28px; }
+.form-content { flex: 1; width: 100%; padding: 24px 20px 60px; display: flex; flex-direction: column; gap: 28px; }
 .form-section { display: flex; flex-direction: column; gap: 12px; }
 .section-heading { font-size: 11px; font-weight: 700; color: $gray-500; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; display: flex; align-items: center; gap: 6px; }
 .section-icon { width: 15px; height: 15px; flex-shrink: 0; }
@@ -817,7 +817,7 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .meta-field { display: flex; flex-direction: column; gap: 4px; }
 .meta-field--full { grid-column: 1 / -1; }
 .field-label { font-size: 10px; font-weight: 700; color: $gray-500; text-transform: uppercase; letter-spacing: 0.04em; }
-.field-input { height: 38px; padding: 0 12px; border: 1.5px solid $gray-200; border-radius: $radius-sm; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; transition: border-color $transition, box-shadow $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba($blue, 0.08); } &:disabled { background: $gray-50; color: $gray-500; cursor: default; border-color: $gray-200; } }
+.field-input { width: 100%; height: 38px; padding: 0 12px; border: 1.5px solid $gray-200; border-radius: $radius-sm; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; transition: border-color $transition, box-shadow $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba($blue, 0.08); } &:disabled { background: $gray-50; color: $gray-500; cursor: default; border-color: $gray-200; } }
 .custom-select { position: relative; }
 .select-trigger { display: flex; align-items: center; width: 100%; height: 38px; padding: 0 10px; border: 1.5px solid $gray-200; border-radius: $radius-sm; background: $white; cursor: pointer; transition: border-color $transition; font-family: $font; font-size: 12px; color: $gray-400; text-align: left; gap: 6px; &.has-value { color: $gray-900; } &:hover:not(:disabled), &:focus:not(:disabled) { border-color: $blue; } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
 .select-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -840,8 +840,8 @@ $font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-seri
 .delivery-row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .delivery-field { display: flex; flex-direction: column; gap: 3px; }
 .field-label-sm { font-size: 9px; font-weight: 700; color: $gray-400; text-transform: uppercase; letter-spacing: 0.04em; }
-.field-input-sm { height: 34px; padding: 0 10px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; transition: border-color $transition, box-shadow $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba($blue, 0.08); } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
-.field-select { height: 34px; padding: 0 8px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; cursor: pointer; transition: border-color $transition; &:focus { border-color: $blue; } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
+.field-input-sm { width: 100%; height: 34px; padding: 0 10px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; transition: border-color $transition, box-shadow $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba($blue, 0.08); } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
+.field-select { width: 100%; height: 34px; padding: 0 8px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; cursor: pointer; transition: border-color $transition; &:focus { border-color: $blue; } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
 .field-textarea { padding: 8px 10px; border: 1px solid $gray-200; border-radius: $radius-xs; font-size: 12px; font-family: $font; color: $gray-900; background: $white; outline: none; resize: none; transition: border-color $transition, box-shadow $transition; &::placeholder { color: $gray-400; } &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba($blue, 0.08); } &:disabled { background: $gray-50; color: $gray-500; cursor: default; } }
 .booking-connect-wrap { position: relative; }
 .btn-connect-booking { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700; font-family: $font; color: $white; background: $gray-800; border: none; border-radius: $radius-sm; cursor: pointer; transition: background $transition; svg { width: 14px; height: 14px; } &:hover { background: $gray-700; } }
